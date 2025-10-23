@@ -8,6 +8,7 @@ export interface ProjectsProps {
   github        ?: string;
   status        ?: string;
   referenceLink ?: string;
+  tags          ?: string[];
 }
 
 export interface MTGCardProps {

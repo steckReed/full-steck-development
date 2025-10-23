@@ -17,48 +17,105 @@ interface SliderExtended extends Slider {
 }
 
 const ProjectsCarousel = () => {
+
+  const tagChipMap: { [key: string]: { label: string; color: string } } = {
+    'nextjs': {
+      label: 'Next.js',
+      color: '#00304B',
+    },
+    'ai': {
+      label: 'AI',
+      color: '#B4573A',
+    },
+    'vector search': {
+      label: 'Vector Search',
+      color: '#3A6B6B',
+    },
+    'dnd': {
+      label: 'Drag & Drop',
+      color: '#525415',
+    },
+    'vite': {
+      label: 'Vite',
+      color: '#4c4066ff',
+    },
+    'html': {
+      label: 'HTML',
+      color: '#A5501A',
+    },
+    'scss': {
+      label: 'SCSS',
+      color: '#7D4156',
+    },
+    'js': {
+      label: 'JavaScript',
+      color: '#BF912E',
+    },
+  };
+
   const myProjects: ProjectsProps[] = [
-    { name: 'D&D Character Creator',
-      desc: 'Next.js Web App to Assist in Creation of D&D Character Sheets',
-      ribbon: 'Full-stack',
-      status: 'In Development',
-      url: 'https://dnd-character-builder-3eb70.web.app/characters/new',
-      // github: 'https://github.com/steckReed/dnd-character-creator',
+    { name: 'Star Wars Unlimited: Vector Search',
+      desc: 'Semantic Card Search and Filtering',
+      ribbon: '',
+      status: 'New',
+      url: 'https://swu-vector-db.web.app/',
+      tags: ['nextjs', 'ai', 'vector search'],
+      // github: '',
+    },
+    { name: 'Star Wars Unlimited: Sealed Simulator',
+      desc: 'Simulate Sealed Events With a Drag and Drop Interface',
+      ribbon: '',
+      status: 'New',
+      url: 'https://swu-sealed.web.app/',
+      tags: ['nextjs', 'dnd'],
+      // github: '',
     },
     { name: 'Funky Color Picker Game',
-      desc: 'Vite & React Random Color Guesser Game',
+      desc: 'Random Color Guesser Game',
       ribbon: 'Front-end',
-      status: 'New',
       url: 'https://funky-color-picker-game.web.app/',
       github: 'https://github.com/steckReed/funky-color-picker-game',
+      tags: ['vite'],
     },
     { name:'Planets Wallpaper',
-      desc:'Pure HTML, SCSS, JS Image Re-Creation',
+      desc:'Image Re-Creation',
       ribbon:'Front-end',
       url:'https://steckreed.github.io/ReCreations/Planets%20Wallpaper/',
       github:'https://github.com/steckReed/ReCreations/tree/Minimalistic/Planets%20Wallpaper',
       referenceLink:'https://steckreed.github.io/ReCreations/Planets%20Wallpaper/reference-img.html',
+      tags: ['html', 'scss', 'js'],
     },
     { name: 'Adventure Niagara Falls',
-      desc: 'Pure HTML, SCSS, JS Image Re-Creation of Niagara Falls Logo Found On Mug',
+      desc: 'Image Re-Creation of Niagara Falls Logo Found On Mug',
       ribbon: 'Front-end',
       url: 'https://steckreed.github.io/ReCreations/Adventure%20Niagara%20Falls/',
       github: 'https://github.com/steckReed/ReCreations/tree/Minimalistic/Adventure%20Niagara%20Falls',
+      tags: ['html', 'scss', 'js'],
     },
     { name: 'Casette Tape',
-      desc: 'Pure HTML, SCSS, JS Image Re-Creation of a Casette',
+      desc: 'Image Re-Creation of a Casette',
       ribbon: 'Front-end',
       url: 'https://steckreed.github.io/ReCreations/Cassette%20Tape/',
       github: 'https://steckreed.github.io/ReCreations/Cassette%20Tape/',
+      tags: ['html', 'scss', 'js'],
     },
     { name: 'Abstract Boho',
-      desc: 'Pure HTML, SCSS, JS Image Re-Creation',
+      desc: 'Image Re-Creation',
       ribbon: 'Front-end',
       url: 'https://steckreed.github.io/ReCreations/Abstract%20Boho%201/',
       referenceLink: 'https://steckreed.github.io/ReCreations/Abstract%20Boho%201/reference-img.html',
       github: 'https://github.com/steckReed/ReCreations/tree/Minimalistic/Abstract%20Boho%201',
+      tags: ['html', 'scss', 'js'],
     },
-  ]
+    { name: 'D&D Character Creator',
+      desc: 'Assist in Creation of D&D Character Sheets',
+      ribbon: 'Full-stack',
+      status: 'In Development',
+      url: 'https://dnd-character-builder-3eb70.web.app/characters/new',
+      // github: 'https://github.com/steckReed/dnd-character-creator',
+      tags: ['nextjs'],
+    },
+  ];
 
   let sliderRef = useRef<SliderExtended>(null);
   const projectAnimDelay = 2.15;
@@ -127,7 +184,7 @@ const ProjectsCarousel = () => {
         {myProjects.map((project: ProjectsProps, i:number)=>{ return(
           <div
             key={i} 
-            style={{   userSelect: 'none'}}
+            style={{userSelect: 'none'}}
           >
             <motion.div
               key={i} 
@@ -158,6 +215,30 @@ const ProjectsCarousel = () => {
                   </h2>
                   
                   <p>{project.desc}</p>
+                  
+                  {/* Tags */}
+                  {project.tags && (
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                      {project.tags.map((tag, tagIndex) => {
+                        const chipData = tagChipMap[tag];
+                        return chipData ? (
+                          <span
+                            key={tagIndex}
+                            style={{
+                              backgroundColor: chipData.color,
+                              color: 'white',
+                              padding: '4px 12px',
+                              borderRadius: '16px',
+                              fontSize: '12px',
+                              fontWeight: 500,
+                            }}
+                          >
+                            {chipData.label}
+                          </span>
+                        ) : null;
+                      })}
+                    </Box>
+                  )}
                 </div>
                 
                 {/* Project Status */}
