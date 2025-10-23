@@ -368,11 +368,11 @@ const IdeasToWebApps = () => {
                     src={"/images/wireframe-dashboard.png"}
                     alt={"A Picture of Me, Reed!"}
                     draggable="false"
-                    layout="responsive"
                     width={415}
                     height={286}
                     style={{
                       maxWidth:'415px',
+                      width: '100%',
                       height: 'auto',
                       objectFit: 'contain',
                       margin:'auto',
