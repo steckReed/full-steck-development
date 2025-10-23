@@ -19,6 +19,13 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
   const [screenWidth, setScreenWidth]                     = useState(0);
   const [hovered, setHovered]                             = useState(false);
   const [scrollSpeedMultiplier, setScrollSpeedMultiplier] = useState(1);
+  const getSpeedMultiplier = (width: number): number => {
+    if (width < 640) return 0.25;
+    if (width < 1024) return 0.28;
+    return 0.31;
+  };
+
+  const screenWidthSpeedMultiplier = getSpeedMultiplier(screenWidth);
 
   // Set screenWidth
   useEffect(() => {
@@ -39,7 +46,7 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
 
   // On scroll speed 
   useEffect(() => {
-    const handleScroll = () => { setScrollSpeedMultiplier(2.5); };
+    const handleScroll = () => { setScrollSpeedMultiplier(1.5); };
 
     const handleScrollEnd = () => {
       setTimeout(() => { setScrollSpeedMultiplier(1); }, 300);
@@ -72,7 +79,7 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
           key         = {rowIndex}
           skills      = {skills}
           direction   = {directions[rowIndex]}
-          baseSpeed   = {speeds[rowIndex]}
+          baseSpeed   = {speeds[rowIndex] * screenWidthSpeedMultiplier}
           hovered     = {hovered}
           color       = {colors?.[rowIndex] || '#2d3e50'}
           itemGap     = {itemGap?.[rowIndex] || 10}
