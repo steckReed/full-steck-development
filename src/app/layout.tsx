@@ -20,6 +20,9 @@ export default function RootLayout({
   return (
     <ReactQueryProvider>
       <html lang="en">
+        <head>
+          <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+        </head>
         <body className={montserrat.className} style={{ minHeight: '100vh' }} >
           <NavBar />
 
