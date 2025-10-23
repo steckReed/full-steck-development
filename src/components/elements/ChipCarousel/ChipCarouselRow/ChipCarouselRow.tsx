@@ -101,11 +101,11 @@ const ChipCarouselRow: React.FC<ChipCarouselRowProps> = ({
         </div>
 
         {/* Additional loops if required */}
-        {Array.from({ length: numRepeats }).map((_, repeatIndex) => (<>
-          <div style={{ display: 'flex', gap: `${itemGap}px` }}>
+        {Array.from({ length: numRepeats }).map((_, repeatIndex) => (
+          <div key={`r-${repeatIndex}`} style={{ display: 'flex', gap: `${itemGap}px` }}>
             {skills.map((skill, skillIndex) => (
               <div
-                key={skillIndex}
+                key={`r-${repeatIndex}-${skillIndex}`}
                 style={{
                   backgroundColor: color,
                   color: '#fff',
@@ -120,7 +120,7 @@ const ChipCarouselRow: React.FC<ChipCarouselRowProps> = ({
               </div>
             ))}
           </div>
-        </>))}
+        ))}
 
       </motion.div>
     </div>
