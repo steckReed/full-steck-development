@@ -9,7 +9,7 @@
       "args": ["-c", "npm i"],
       "problemMatcher": [],
       "presentation": {
-        "group": "system-npm-dev",
+        "group": "system-npm-install",
         "echo": true,
         "focus": true,
         "panel": "shared"
