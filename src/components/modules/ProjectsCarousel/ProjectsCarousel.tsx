@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Box } from '@mui/material';
 import { ProjectsProps } from '@/types/types';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import Link from 'next/link';
 import LaunchIcon from '@mui/icons-material/Launch';
 import statusColors from '@/functions/statusColors';
@@ -307,3 +307,4 @@ const ProjectsCarousel = () => {
 };
 
 export default ProjectsCarousel;
+

@@ -1,4 +1,4 @@
-import { useMotionValue, motion } from 'framer-motion';
+import { useMotionValue, motion } from 'motion/react';
 import { useState, useRef, useEffect } from 'react';
 
 interface ChipCarouselRowProps {
@@ -129,3 +129,4 @@ const ChipCarouselRow: React.FC<ChipCarouselRowProps> = ({
 
 
 export default ChipCarouselRow;
+

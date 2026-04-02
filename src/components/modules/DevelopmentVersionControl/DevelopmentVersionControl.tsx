@@ -1,7 +1,7 @@
 'use client';
 
 import { Box } from '@mui/material';
-import { motion, useAnimate, useScroll, useTransform } from 'framer-motion';
+import { motion, useAnimate, useScroll, useTransform } from 'motion/react';
 import { AnimationSequence } from '@/types/types';
 import useAnimationSequence from '@/hooks/useAnimationSequence';
 import useRefScrollPercentage from '@/hooks/useRefScrollPercentage';
@@ -505,3 +505,4 @@ const DevelopmentVersionControl = () => {
 };
 
 export default DevelopmentVersionControl;
+

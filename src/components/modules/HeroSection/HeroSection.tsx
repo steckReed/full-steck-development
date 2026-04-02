@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useAnimation } from "framer-motion"
+import { motion, useAnimation } from "motion/react"
 import { useEffect } from 'react';
 import Image from "next/image";
 import ResponsiveImage from '../../elements/ResponsiveImage';
@@ -136,3 +136,4 @@ const HeroSection = () => {
 }
 
 export default HeroSection;
+

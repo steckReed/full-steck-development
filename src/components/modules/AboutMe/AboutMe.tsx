@@ -1,7 +1,7 @@
 import useIsMobile from '@/functions/useIsMobile';
 import useRefScrollPercentage from '@/hooks/useRefScrollPercentage';
 import { Box } from '@mui/material';
-import { motion, useAnimate, useScroll, useTransform } from 'framer-motion';
+import { motion, useAnimate, useScroll, useTransform } from 'motion/react';
 
 const AboutMe = () => {
   const isMobile              = useIsMobile();
@@ -167,3 +167,4 @@ const AboutMe = () => {
 }
 
 export default AboutMe;
+

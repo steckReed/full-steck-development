@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { Box } from '@mui/material';
-import { motion, useAnimate } from 'framer-motion';
+import { motion, useAnimate } from 'motion/react';
 import { AgileTimelineTicketsProps, AnimationSequence } from '@/types/types';
 import Image from "next/image";
 import LegendContainer from '../LegendContainer/LegendContainer';
@@ -459,3 +459,4 @@ const IdeasToWebApps = () => {
 }
 
 export default IdeasToWebApps;
+

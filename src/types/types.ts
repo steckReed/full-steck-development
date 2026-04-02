@@ -1,4 +1,4 @@
-import { AnimationDefinition, Target, TargetAndTransition, VariantLabels } from 'framer-motion';
+import { AnimationDefinition, Target, TargetAndTransition, VariantLabels } from 'motion/react';
 
 export interface ProjectsProps {
   name          : string;
@@ -180,3 +180,4 @@ export interface VersionControlTicket {
 export interface VersionControlTickets {
   [key: string]: VersionControlTicket;
 }
+
