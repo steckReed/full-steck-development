@@ -1,0 +1,73 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    // npm install
+    {
+      "label": "npm install",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "npm i"],
+      "problemMatcher": [],
+      "presentation": {
+        "group": "system-npm-dev",
+        "echo": true,
+        "focus": true,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    // npm run dev
+    {
+      "label": "npm run dev",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "npm run dev"],
+      "problemMatcher": [],
+      "presentation": {
+        "group": "system-npm-dev",
+        "echo": true,
+        "focus": true,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+    // npm run build
+    {
+      "label": "npm run build",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "npm run build"],
+      "problemMatcher": [],
+      "presentation": {
+        "group": "system-npm-build",
+        "echo": true,
+        "focus": true,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },    
+    // firebase deploy
+    {
+      "label": "firebase deploy",
+      "type": "shell",
+      "command": "bash",
+      "args": ["-c", "firebase deploy --only hosting"],
+      "problemMatcher": [],
+      "presentation": {
+        "group": "system-firebase-deploy",
+        "echo": true,
+        "focus": true,
+        "panel": "shared"
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      }
+    },
+  ]
+}
