@@ -59,7 +59,9 @@ const ProjectsCarousel = () => {
       ribbon: '',
       status: 'New',
       url: 'https://swu-vector-db.web.app/',
-      tags: ['nextjs', 'ai', 'vector search'],
+      tags: ['nextjs', 
+        // 'ai', 'vector search'
+      ],
       // github: '',
     },
     { name: 'Star Wars Unlimited: Sealed Simulator',
