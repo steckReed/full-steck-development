@@ -23,8 +23,12 @@ const ProjectsCarousel = () => {
       label: 'Next.js',
       color: '#00304B',
     },
-    'ai': {
-      label: 'AI',
+    // 'ai': {
+    //   label: 'AI',
+    //   color: '#B4573A',
+    // },
+    'full-stack': {
+      label: 'Full-stack',
       color: '#B4573A',
     },
     'vector search': {
@@ -57,9 +61,9 @@ const ProjectsCarousel = () => {
     { name: 'Star Wars Unlimited: Vector Search',
       desc: 'Semantic Card Search and Filtering',
       ribbon: '',
-      status: 'New',
+      // status: 'New',
       url: 'https://swu-vector-db.web.app/',
-      tags: ['nextjs', 
+      tags: ['nextjs', 'full-stack'
         // 'ai', 'vector search'
       ],
       // github: '',
@@ -67,7 +71,7 @@ const ProjectsCarousel = () => {
     { name: 'Star Wars Unlimited: Sealed Simulator',
       desc: 'Simulate Sealed Events With a Drag and Drop Interface',
       ribbon: '',
-      status: 'New',
+      // status: 'New',
       url: 'https://swu-sealed.web.app/',
       tags: ['nextjs', 'dnd'],
       // github: '',
@@ -112,7 +116,7 @@ const ProjectsCarousel = () => {
     { name: 'D&D Character Creator',
       desc: 'Assist in Creation of D&D Character Sheets',
       ribbon: 'Full-stack',
-      status: 'In Development',
+      // status: 'In Development',
       url: 'https://dnd-character-builder-3eb70.web.app/characters/new',
       // github: 'https://github.com/steckReed/dnd-character-creator',
       tags: ['nextjs'],
@@ -210,9 +214,9 @@ const ProjectsCarousel = () => {
               <Box sx={{ display:'grid', minHeight:'115px' }}>
                 <div style={{ gridColumn: 1, gridRow: 1, margin:'auto 0', padding:'12px 24px' }}>
                   <h2>
-                    {project.name} 
-                    <Link href={project.url} target='_blank' style={{ textDecoration: 'none', color: 'black', paddingLeft:'4px' }}>
-                      <LaunchIcon sx={{ fontSize: '18px' }} />
+                    <Link href={project.url} target='_blank' rel='noopener noreferrer' style={{ textDecoration: 'none', color: 'inherit' }}>
+                      {project.name}
+                      <LaunchIcon sx={{ fontSize: '18px', paddingLeft: '4px' }} />
                     </Link>
                   </h2>
                   
