@@ -1,4 +1,4 @@
-import { AnimationDefinition, Target, TargetAndTransition, VariantLabels } from 'framer-motion';
+import { AnimationDefinition, Target, TargetAndTransition, VariantLabels } from 'motion/react';
 
 export interface ProjectsProps {
   name          : string;
@@ -8,6 +8,7 @@ export interface ProjectsProps {
   github        ?: string;
   status        ?: string;
   referenceLink ?: string;
+  tags          ?: string[];
 }
 
 export interface MTGCardProps {
@@ -179,3 +180,4 @@ export interface VersionControlTicket {
 export interface VersionControlTickets {
   [key: string]: VersionControlTicket;
 }
+

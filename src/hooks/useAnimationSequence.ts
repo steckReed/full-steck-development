@@ -1,13 +1,12 @@
 import { AnimationSequence } from '@/types/types';
 import { AnimationDefinition
         ,AnimationScope
-        ,animate as animateFn 
-} from 'framer-motion';
+        } from 'motion/react';
 import { useRef, useEffect } from 'react';
 
 const useAnimationSequence = (
   scope: AnimationScope<any>,
-  animate: typeof animateFn,
+  animate: (...args: any[]) => any,
   animationSequence: AnimationSequence[],
   startAnimOn: Map<string, boolean>
 ) => {
@@ -73,3 +72,5 @@ const useAnimationSequence = (
 };
 
 export default useAnimationSequence;
+
+

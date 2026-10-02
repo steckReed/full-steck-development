@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, useAnimation } from "framer-motion"
+import { motion, useAnimation } from "motion/react"
 import { useEffect } from 'react';
 import Image from "next/image";
 import ResponsiveImage from '../../elements/ResponsiveImage';
@@ -51,7 +51,7 @@ const HeroSection = () => {
         
         <motion.div 
           initial     = {{ opacity: 0, left:'100px' }}
-          animate     = {{ opacity: 1, left:'unset', right:'2vw' }}
+          animate     = {{ opacity: 1, left:'unset', right:isMobile ?(0) :('2vw') }}
           exit        = {{ opacity: 0 }}
           transition  = {{ duration: 1.25, ease: 'backInOut', delay:0.15 }}
 
@@ -64,11 +64,12 @@ const HeroSection = () => {
 
         <h1 
           style={{ 
-            textTransform: 'uppercase', 
-            fontSize: '128px', 
-            textAlign: 'right', padding:'0',
+            textTransform: 'uppercase',
+            fontSize: 'clamp(52px, 24vw, 128px)', 
+            padding:'0',
             margin:'0', 
-            lineHeight:'69%'
+            lineHeight:'69%',
+            textAlign: 'center'
           }}
         >
           {"I\'m"}
@@ -101,7 +102,7 @@ const HeroSection = () => {
       {/* Right-hand text */}
       <motion.div 
         initial     = {{ opacity: 0, right: '100px' }}
-        animate     = {{ opacity: 1, right: isMobile ?(0) :'25px' }}
+        animate     = {{ opacity: 1, right: isMobile ?(0) :('25px') }}
         exit        = {{ opacity: 0 }}
         transition  = {{ duration: 1.5, ease:'backInOut' }}
         style={{ position: 'relative', top: isMobile ?('-15px'): '15px', display: 'grid', margin: 'auto', zIndex: 1 }}
@@ -109,10 +110,11 @@ const HeroSection = () => {
         <h1 
           style={{ 
             textTransform: 'uppercase', 
-            fontSize: 'clamp(32px, 95vw, 128px)', 
+            fontSize: 'clamp(52px, 24vw, 128px)', 
             padding: '0', 
             margin: '0', 
-            lineHeight: '69%'
+            lineHeight: '69%',
+            textAlign:'center'
           }}
         >
           Reed
@@ -134,3 +136,4 @@ const HeroSection = () => {
 }
 
 export default HeroSection;
+

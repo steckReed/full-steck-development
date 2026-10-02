@@ -1,7 +1,7 @@
 'use client';
 
 import { Box } from '@mui/material';
-import { motion, useAnimate, useScroll, useTransform } from 'framer-motion';
+import { motion, useAnimate, useScroll, useTransform } from 'motion/react';
 import { AnimationSequence } from '@/types/types';
 import useAnimationSequence from '@/hooks/useAnimationSequence';
 import useRefScrollPercentage from '@/hooks/useRefScrollPercentage';
@@ -176,8 +176,8 @@ const DevelopmentVersionControl = () => {
   const leftBranch1_CircleY   = useTransform(scrollYProgress, [0.25, 0.40, 0.6]   ,[14, 130, 320]);
 
   // Center Branch 1
-  const centerBranch1_Path    = useTransform(scrollYProgress, [0, 1]        ,[0, 1]);
-  const centerBranch1_CircleY = useTransform(scrollYProgress, [0, 1]        ,[0, 877]);
+  const centerBranch1_Path    = useTransform(scrollYProgress, [0, 1]              ,[0, 1]);
+  const centerBranch1_CircleY = useTransform(scrollYProgress, [0, 1]              ,[0, 877]);
 
   // Right Branch 1
   const rightBranch1_Path     = useTransform(scrollYProgress, [0.15, 0.40]        ,[0, 1]);
@@ -193,11 +193,7 @@ const DevelopmentVersionControl = () => {
   
   return(<>
     <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 10vh, 125px)', paddingBottom: 'calc(2.5vh + 1rem)' }}>
-      <Box ref={scope} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '4000px', height: '300vh', gap: 'clamp(45px, 8vh, 125px)'
-
-        // Temp style until dashboard is created
-        ,marginBottom:'clamp(45px, 8vh, 125px)' }}
-      >
+      <Box ref={scope} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '4000px', height: '300vh', gap: 'clamp(45px, 8vh, 125px)'}}>
         {/* Section Title */}
         <motion.div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
           <GitHubIcon sx={{ fontSize: 'clamp(175px, 45vw, 300px)', color: '#202328' }} />
@@ -398,7 +394,10 @@ const DevelopmentVersionControl = () => {
                 width: 'max-content',
                 left: rightBranch1_CircleX,
                 top: rightBranch1_CircleY,
-                transform:'translate(calc(0% + 3.5vw), -50%)',
+                transform: (!isMobile)
+                  ? 'translate(calc(0% + 3.5vw), -50%)'
+                  : 'translate(-50%, calc(-135% - 1.5vh))',
+                zIndex:1
               }}
             >
               <TicketContainer
@@ -506,3 +505,4 @@ const DevelopmentVersionControl = () => {
 };
 
 export default DevelopmentVersionControl;
+

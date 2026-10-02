@@ -6,7 +6,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Dev Reed Steck",
-  description: "My Personal Portfolio",
+  description: "Welcome to My Portfolio & Site",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({
@@ -17,6 +20,9 @@ export default function RootLayout({
   return (
     <ReactQueryProvider>
       <html lang="en">
+        <head>
+          <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+        </head>
         <body className={montserrat.className} style={{ minHeight: '100vh' }} >
           <NavBar />
 

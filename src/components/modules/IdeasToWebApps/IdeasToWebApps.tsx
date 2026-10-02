@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { Box } from '@mui/material';
-import { motion, useAnimate } from 'framer-motion';
+import { motion, useAnimate } from 'motion/react';
 import { AgileTimelineTicketsProps, AnimationSequence } from '@/types/types';
 import Image from "next/image";
 import LegendContainer from '../LegendContainer/LegendContainer';
@@ -152,7 +152,7 @@ const IdeasToWebApps = () => {
         'animations': [
           {
             animate: { opacity: 1, width: '11%'},
-            transition: { duration: 1.75, ease: 'easeInOut', delay: animDelay + 0.2 },
+            transition: { duration: 1.75, ease: 'backInOut', delay: animDelay + 0.2 },
           }
         ],
       },
@@ -163,7 +163,7 @@ const IdeasToWebApps = () => {
         'animations': [
           {
             animate: { opacity: 1, width: '7%'},
-            transition: { duration: 1.75, ease: 'easeInOut', delay: animDelay + 0.25 },
+            transition: { duration: 1.75, ease: 'backInOut', delay: animDelay + 0.25 },
           }
         ],
       },
@@ -174,7 +174,7 @@ const IdeasToWebApps = () => {
         'animations': [
           {
             animate: { opacity: 1, width: '15%'},
-            transition: { duration: 1.75, ease: 'easeInOut', delay: animDelay + 0.3 },
+            transition: { duration: 1.75, ease: 'backInOut', delay: animDelay + 0.3 },
           }
         ],
       },
@@ -185,7 +185,7 @@ const IdeasToWebApps = () => {
         'animations': [
           {
             animate: { opacity: 1, width: '89%'},
-            transition: { duration: 3.5, ease: 'easeInOut', delay: animDelay + 0.35 },
+            transition: { duration: 3.75, ease: 'backInOut', delay: animDelay + 0.35 },
           }
         ],
       },
@@ -196,7 +196,7 @@ const IdeasToWebApps = () => {
         'animations': [
           {
             animate: { opacity: 1, width: '74%'},
-            transition: { duration: 3, ease: 'easeInOut', delay: animDelay + 0.4 },
+            transition: { duration: 3, ease: 'backInOut', delay: animDelay + 0.4 },
           }
         ],
       },
@@ -278,7 +278,7 @@ const IdeasToWebApps = () => {
 
 
           {/* Container for timeline components */}
-          <Box sx={{ position: 'sticky', top: '9vh', display: 'grid', gridTemplateColumns: (!isMobile) ?('unset') :('50px max-content'), rowGap: '50px', }}>
+          <Box sx={{ position: 'sticky', top: '9vh', display: 'grid', gridTemplateColumns: (!isMobile) ?('unset') :('10vw max-content'), columnGap: '1vw' }}>
 
             {/* Timeline guide */}
             <Box
@@ -368,11 +368,11 @@ const IdeasToWebApps = () => {
                     src={"/images/wireframe-dashboard.png"}
                     alt={"A Picture of Me, Reed!"}
                     draggable="false"
-                    layout="responsive"
                     width={415}
                     height={286}
                     style={{
                       maxWidth:'415px',
+                      width: '100%',
                       height: 'auto',
                       objectFit: 'contain',
                       margin:'auto',
@@ -459,3 +459,4 @@ const IdeasToWebApps = () => {
 }
 
 export default IdeasToWebApps;
+

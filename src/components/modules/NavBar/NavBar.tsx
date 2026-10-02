@@ -1,7 +1,7 @@
 'use client';
 
 import { Box } from '@mui/material';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import Link from 'next/link';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
 import GitHubIcon from '@mui/icons-material/GitHub';
@@ -65,7 +65,7 @@ const NavBar = () => {
           alignSelf: 'center'
         }}
       >
-        <Link href="/files/steck-reed-resume.pdf" download="steck-reed-resume.pdf" target='_blank' style={{ color:'black', textDecoration:'none' }}>
+        <Link href="/files/c-steck-reed-resume.pdf" download="c-steck-reed-resume.pdf" target='_blank' style={{ color:'black', textDecoration:'none' }}>
           <p>Resume</p>
         </Link>
       </motion.div>
@@ -76,3 +76,4 @@ const NavBar = () => {
 }
 
 export default NavBar;
+
