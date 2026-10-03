@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useReducedMotion } from 'motion/react';
 import ChipCarouselRow from './ChipCarouselRow/ChipCarouselRow';
 
 interface ChipCarouselProps {
@@ -18,7 +19,7 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
 }) => {
   const [screenWidth, setScreenWidth]                     = useState(0);
   const [hovered, setHovered]                             = useState(false);
-  const [scrollSpeedMultiplier, setScrollSpeedMultiplier] = useState(1);
+  const reduceMotion                                      = useReducedMotion();
   const getSpeedMultiplier = (width: number): number => {
     if (width < 640) return 0.25;
     if (width < 1024) return 0.28;
@@ -44,23 +45,6 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
   }, []);
 
 
-  // On scroll speed 
-  useEffect(() => {
-    const handleScroll = () => { setScrollSpeedMultiplier(1.5); };
-
-    const handleScrollEnd = () => {
-      setTimeout(() => { setScrollSpeedMultiplier(1); }, 300);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('scroll', handleScrollEnd);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('scroll', handleScrollEnd);
-    };
-  }, []);
-
   return (
     <div
       style={{ 
@@ -68,7 +52,7 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
         gap: '15px',
         flexDirection: 'column',
         overflow: 'hidden',
-        maxWidth: '100vw'
+        maxWidth: '100%'
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -80,10 +64,9 @@ const ChipCarousel: React.FC<ChipCarouselProps> = ({
           skills      = {skills}
           direction   = {directions[rowIndex]}
           baseSpeed   = {speeds[rowIndex] * screenWidthSpeedMultiplier}
-          hovered     = {hovered}
+          paused      = {hovered || !!reduceMotion}
           color       = {colors?.[rowIndex] || '#2d3e50'}
           itemGap     = {itemGap?.[rowIndex] || 10}
-          scrollSpeedMultiplier = {scrollSpeedMultiplier}
         />
       ))}
     </div>

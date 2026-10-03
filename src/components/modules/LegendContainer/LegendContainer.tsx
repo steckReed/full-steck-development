@@ -7,17 +7,19 @@ interface Props{
   width?: string;
   children: ReactNode;
   animateBorder?: boolean;
+  paperColor?: string;
 }
 
-const LegendContainer = ({ 
-  title, 
-  width='clamp(250px, 85vw, 544px)', 
+const LegendContainer = ({
+  title,
+  width='clamp(250px, 85vw, 544px)',
   children,
-  animateBorder
+  animateBorder,
+  paperColor='paper-olive'
 }: Props) => {
 
   return (<>
-  <Box className="paper paper-olive">
+  <Box className={`paper ${paperColor}`}>
     <Box 
       sx={{ 
         backgroundColor:'#F9F7F4',

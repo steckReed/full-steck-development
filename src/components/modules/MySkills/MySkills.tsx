@@ -1,19 +1,30 @@
 import { Box } from '@mui/material';
+import { motion, MotionConfig, Variants } from 'motion/react';
 import ChipCarousel from '@/components/elements/ChipCarousel/ChipCarousel';
- 
+import LegendContainer from '../LegendContainer/LegendContainer';
+import { skillCategories } from '@/data/skills';
+
+// Category card slides up, then its chips pop in one after another
+const categoryVariants: Variants = {
+  hidden: { opacity: 0, y: 80 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.75, ease: 'backInOut', delay: (i % 2) * 0.15, type: 'spring', bounce: 0, delayChildren: 0.35 + (i % 2) * 0.15, staggerChildren: 0.04 }
+  })
+};
+
+const chipVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.6 },
+  visible: { opacity: 1, scale: 1, transition: { type: 'spring', bounce: 0.4, duration: 0.5 } }
+};
+
 const MySkills = () => {
-  const skillsData = [
-    ['PHP', 'Next.js', 'React', 'Express', 'Vite', 'ASP.NET', 'Bootstrap', 'Tailwind', 'MUI', 'Framer Motion', 'React Query', 'Selenium', 'dnd kit', 'Websockets', 'Front-End Development', 'Back-End Development', 'Responsive Design', 'UI / UX', 'Wireframing'],
-    
-    ['Microsoft Azure', 'Azure Functions', 'Azure Logic Apps', 'Azure DevOps', 'TypeScript', 'JavaScript', 'Python', 'HTML', 'CSS', 'SCSS', 'Shell Script', 'MSSQL (T-SQL)', 'NoSQL', 'Docker', 'Git', 'GitHub', 'VSCode', 'Google Firebase'],
-    
-    ['Monday.com', 'Jira', 'Figma', 'Adobe XD', 'Excel/Sheets', 'PowerPoint/Slides', 'Word/Docs', 'Outlook', 'Teams']
-  ];
 
   return (<>
-    <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 10vh, 125px)', paddingBottom: 'calc(4.5vh + 1rem)' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 8vh, 90px)', paddingBottom: 'calc(4.5vh + 1rem)' }}>
 
-      <Box sx={{ position: 'sticky', top: '9vh', display: 'grid', gap: '35px', }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '35px', width: '100%' }}>
         {/* Title */}
         <h1
           style={{
@@ -28,13 +39,67 @@ const MySkills = () => {
           My Skills
         </h1>
 
-        <ChipCarousel
-          rows        = {skillsData}
-          directions  = {['left', 'right', 'left']}
-          speeds      = {[11, 7, 9]}
-          colors      = {['#00304B', '#A5501A', '#525415']}
-        />
+        {/* Decorative marquee (static list below is the readable version) */}
+        <Box aria-hidden='true'>
+          <ChipCarousel
+            rows        = {skillCategories.map((category) => category.skills)}
+            directions  = {['left', 'right', 'left', 'right']}
+            speeds      = {[7, 5, 6, 4]}
+            colors      = {skillCategories.map((category) => category.color)}
+          />
+        </Box>
+      </Box>
 
+      {/* Skills by Category */}
+      <Box
+        sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          columnGap: '2.5rem',
+          rowGap: '4rem',
+          maxWidth: '1200px',
+          padding: '0 1rem'
+        }}
+      >
+        <MotionConfig reducedMotion='user'>
+          {skillCategories.map((category, i) => (
+            <motion.div
+              key         = {category.title}
+              custom      = {i}
+              variants    = {categoryVariants}
+              initial     = 'hidden'
+              whileInView = 'visible'
+              viewport    = {{ once: true, amount: 0.4 }}
+            >
+              <LegendContainer
+                title={category.title}
+                width='clamp(250px, 85vw, 520px)'
+                paperColor={category.paperColor}
+              >
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '10px', paddingTop: '0.5rem', justifyContent:'center' }}>
+                  {category.skills.map((skill) => (
+                    <motion.span
+                      key={skill}
+                      variants={chipVariants}
+                      style={{
+                        backgroundColor: category.color,
+                        color: 'white',
+                        whiteSpace: 'nowrap',
+                        padding: '6px 14px',
+                        borderRadius: '20px',
+                        fontWeight: 600,
+                        fontSize: '15px'
+                      }}
+                    >
+                      {skill}
+                    </motion.span>
+                  ))}
+                </Box>
+              </LegendContainer>
+            </motion.div>
+          ))}
+        </MotionConfig>
       </Box>
     </Box>
   </>)

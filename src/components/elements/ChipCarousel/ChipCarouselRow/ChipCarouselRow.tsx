@@ -6,10 +6,9 @@ interface ChipCarouselRowProps {
   skills: string[];
   direction: 'left' | 'right';
   baseSpeed: number;
-  hovered: boolean;
+  paused: boolean;
   color: string;
   itemGap: number;
-  scrollSpeedMultiplier: number;
 }
 
 const ChipCarouselRow: React.FC<ChipCarouselRowProps> = ({
@@ -17,17 +16,16 @@ const ChipCarouselRow: React.FC<ChipCarouselRowProps> = ({
   skills,
   direction,
   baseSpeed,
-  hovered,
+  paused,
   color,
   itemGap,
-  scrollSpeedMultiplier,
 }) => {
   const [rowWidth, setRowWidth] = useState(screenWidth);
   const [numRepeats, setNumRepeats] = useState(1);
   const rowRef = useRef<HTMLDivElement>(null);
   const xTranslation = useMotionValue(-rowWidth);
   const positionFactor = (direction === 'left') ? (-1) : (1);
-  const finalSpeed = hovered ? (baseSpeed / 2) : (baseSpeed * scrollSpeedMultiplier); // Based on hover/still/scroll
+  const finalSpeed = paused ? (0) : (baseSpeed); // Stops on hover or when reduced motion is preferred
 
   // Get row width & determine how many times to repeat row len to fill screen
   useEffect(() => {
