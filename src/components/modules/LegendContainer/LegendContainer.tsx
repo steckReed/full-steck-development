@@ -8,6 +8,7 @@ interface Props{
   children: ReactNode;
   animateBorder?: boolean;
   paperColor?: string;
+  hideTitle?: boolean;
 }
 
 const LegendContainer = ({
@@ -15,7 +16,8 @@ const LegendContainer = ({
   width='clamp(250px, 85vw, 544px)',
   children,
   animateBorder,
-  paperColor='paper-olive'
+  paperColor='paper-olive',
+  hideTitle=false
 }: Props) => {
 
   return (<>
@@ -44,7 +46,10 @@ const LegendContainer = ({
           borderRadius:'12px',
           height:'40px',
           padding:'0 2.5rem',
-          width:'min-content'
+          width:'min-content',
+          opacity: hideTitle ?(0) :(1),
+          pointerEvents: hideTitle ?('none') :('auto'),
+          transition:'opacity 0.3s'
         }}
       >
         <h4 

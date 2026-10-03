@@ -1,462 +1,324 @@
 'use client';
 
-import { useRef } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Box } from '@mui/material';
-import { motion, useAnimate } from 'motion/react';
-import { AgileTimelineTicketsProps, AnimationSequence } from '@/types/types';
+import { AnimationPlaybackControls, motion, useAnimate, useInView, useReducedMotion } from 'motion/react';
 import Image from "next/image";
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import LegendContainer from '../LegendContainer/LegendContainer';
-import useRefScrollPercentage from '@/hooks/useRefScrollPercentage';
-import useAnimationSequence from '@/hooks/useAnimationSequence';
-import CustomChip from '@/components/elements/CustomChip/CustomChip';
+import AgileTimelineStep from './AgileTimelineStep/AgileTimelineStep';
+import WordCycler from '@/components/elements/WordCycler/WordCycler';
 import ResponsiveImage from '@/components/elements/ResponsiveImage';
-import TicketContainer from '@/components/elements/TicketContainer/TicketContainer';
-import useIsMobile from '@/functions/useIsMobile';
 
+interface ProcessStep {
+  title     : string;
+  caption   : string;
+  duration  : number; // seconds the step stays up while auto-playing
+  width     ?: string;
+  content   : (active: boolean) => ReactNode;
+}
+
+// Words the title chip flips through before settling on the last one
+const titleWords = ['Sketches', 'Spreadsheets', 'Problems', 'Workflows', 'Ideas'];
+
+// How far up the screen the card stack must scroll before the slides start (share of screen height)
+const startScreenOffset = '40%';
+
+// Seconds to hold on the first step before auto-play begins, giving the title word cycler time to settle
+const autoPlayStartDelay = 1;
+
+const processSteps: ProcessStep[] = [
+  { title: 'Idea',
+    caption: 'Every project/feature starts with a need and desire to fill it: who it\'s for and what problem it solves.',
+    duration: 5,
+    content: () => (
+      <p style={{ textAlign: 'center', fontSize:'clamp(18px, 4.5vw, 24px)', padding:'0 1rem' }}>
+        Develop and implement an interactive dashboard to fetch internal data for analysis
+      </p>
+    ),
+  },
+  { title: 'Wireframe',
+    caption: 'Wireframe is sketched as proof of concept to ensure needs can be met before implementation.',
+    duration: 5,
+    content: () => (
+      <Box sx={{ display:'flex', justifyContent:'center', alignItems:'center' }}>
+        <ResponsiveImage src="/images/wireframe-dashboard.png">
+          <Image
+            src={"/images/wireframe-dashboard.png"}
+            alt={"Wireframe of a dashboard with bar, line, pie, and scatter charts"}
+            draggable="false"
+            width={415}
+            height={286}
+            style={{
+              maxWidth:'415px',
+              width: '100%',
+              height: 'auto',
+              objectFit: 'contain',
+              margin:'auto',
+              padding:'2vh 0 1.25vh'
+            }}
+          />
+        </ResponsiveImage>
+      </Box>
+    ),
+  },
+  { title: 'Agile Timeline',
+    caption: 'To keep on-schedule, work is broken into tickets and shipped in short sprints, so progress is visible early.',
+    duration: 7,
+    width: 'clamp(250px, 85vw, 815px)',
+    content: (active) => <AgileTimelineStep active={active} />,
+  },
+];
+
+// Card stack positions: upcoming cards wait below, past cards peek out behind the active one (darkened while hovered)
+const getCardAnim = (index: number, active: number, hovered: boolean) => {
+  if (index > active) return { opacity: 0, y: 225, scale: 0.75, filter: 'brightness(1)' };
+
+  const depth = active - index;
+  return { opacity: 1, y: depth * -22, scale: 1 - depth * 0.05, filter: (depth > 0 && hovered) ?('brightness(0.9)') :('brightness(1)') };
+};
 
 const IdeasToWebApps = () => {
-  // Container Ref
-  const containerRef      = useRef<HTMLDivElement>(null);
-  const scrollPercentage  = useRefScrollPercentage(containerRef);
-  const [scope, animate]  = useAnimate();
-  const animDelay         = 0.75;
-  const isMobile          = useIsMobile();
+  const sectionRef                    = useRef<HTMLDivElement>(null);
+  const inView                        = useInView(sectionRef, { amount: 0.4 });
+  const stackRef                      = useRef<HTMLDivElement>(null);
+  const stackReached                  = useInView(stackRef, { once: true, margin: `0px 0px -${startScreenOffset} 0px` });
+  const reduceMotion                  = useReducedMotion();
+  const [barScope, animateBar]        = useAnimate();
+  const barControls                   = useRef<AnimationPlaybackControls | null>(null);
+  const [active, setActive]           = useState(0);
+  const [autoPlay, setAutoPlay]       = useState(true);
+  const [started, setStarted]         = useState(false);
+  const [hovered, setHovered]         = useState(false);
+  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const isAutoPlaying                 = autoPlay && !reduceMotion;
 
-  // Map Containing Animation Trigger Points
-  const startAnimOn = new Map([
-    ['item1', scrollPercentage > 0],
-    ['item2', scrollPercentage > 33],
-    ['item3', scrollPercentage > 66],
-  ])
-  
-  // Settings for carousel items animations
-  const carouselItemAnimSettings = {
-    initial     : { opacity: 0, bottom: '-225px', transform: 'scale(0.75)' },
-    animate     : { opacity: 1, bottom: '0', transform: 'scale(1)' },
-    transition  : { duration: 0.85, ease: 'easeInOut', delay: 1 / 3, type: 'spring', bounce: 0 }
-  }
-  
-  // Components Animation Sequence
-  const animationSequence: AnimationSequence[] = [
-    // Carousel Items
-      { 'id': 'carouselItem_Idea',
-        'animStartOn': 'item1',
+  // Start once the card stack has scrolled into the upper part of the screen
+  useEffect(() => {
+    if (stackReached) setStarted(true);
+  }, [stackReached]);
 
-        'initial': carouselItemAnimSettings.initial,
-        'animations': [
-          {
-            animate: carouselItemAnimSettings.animate,
-            transition: carouselItemAnimSettings.transition
-          }
-        ],
-      },
-      { 'id': 'carouselItem_Wireframe',
-        'animStartOn': 'item2',
+  // Auto-play: fill the active step's bar, then move to the next step
+  useEffect(() => {
+    if (!started || !isAutoPlaying) return;
 
-        'initial': carouselItemAnimSettings.initial,
-        'animations': [
-          {
-            animate: carouselItemAnimSettings.animate,
-            transition: carouselItemAnimSettings.transition
-          }
-        ],
-      },
+    let cancelled = false;
+    const controls = animateBar(
+      `[data-step-bar="${active}"]`,
+      { scaleX: [0, 1] },
+      { duration: processSteps[active].duration, ease: 'linear', delay: (active === 0) ?(autoPlayStartDelay) :(0) }
+    );
+    barControls.current = controls;
 
-      { 'id': 'carouselItem_AgileTimeline',
-        'animStartOn': 'item3',
+    controls.then(() => {
+      if (cancelled) return;
+      if (active < processSteps.length - 1) setActive(active + 1);
+      else setAutoPlay(false);
+    });
 
-        'initial': carouselItemAnimSettings.initial,
-        'animations': [
-          {
-            animate: carouselItemAnimSettings.animate,
-            transition: carouselItemAnimSettings.transition
-          }
-        ],
-      },
+    return () => { cancelled = true; controls.stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, started, isAutoPlaying]);
 
+  // Pause while hovered or scrolled away
+  useEffect(() => {
+    if (hovered || !inView) barControls.current?.pause();
+    else barControls.current?.play();
+  }, [hovered, inView]);
 
+  // Any manual navigation hands control over to the user
+  const goToStep = (step: number) => {
+    setAutoPlay(false);
+    setActive(Math.max(0, Math.min(processSteps.length - 1, step)));
+  };
 
-    // Agile Timeline
-      { 'id': 'ticket1',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, left: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, },
-            transition: { duration: 0.75, ease: 'easeInOut', delay: animDelay },
-          }
-        ],
-      },
-      { 'id': 'ticket2',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, left: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, },
-            transition: { duration: 0.75, ease: 'easeInOut', delay: animDelay + 0.1 },
-          },
-        ],
-      },
-      { 'id': 'ticket3',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, left: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, },
-            transition: { duration: 0.75, ease: 'easeInOut', delay: animDelay + 0.15 },
-          },
-          {
-            animate: { left: '11%' },
-            transition: { duration: 0.5, delay: 0.5 },
-          },
-        ],
-      },
-      { 'id': 'ticket4',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, left: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, },
-            transition: { duration: 0.75, ease: 'easeInOut', delay: animDelay + 0.2},
-          },
-          {
-            animate: { left: '11%' },
-            transition: { duration: 0.5, delay: 0.5 },
-          },
-        ],
-      },
-      { 'id': 'ticket5',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, left: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, },
-            transition: { duration: 0.75, ease: 'easeInOut', delay: animDelay + 0.25 },
-          },
-          {
-            animate: { left: '26%' },
-            transition: { duration: 0.75, delay: 0.5 },
-          },
-        ],
-      },
-      
-      { 'id': 'ticket1LoadingBar',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, width: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, width: '11%'},
-            transition: { duration: 1.75, ease: 'backInOut', delay: animDelay + 0.2 },
-          }
-        ],
-      },
-      { 'id': 'ticket2LoadingBar',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, width: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, width: '7%'},
-            transition: { duration: 1.75, ease: 'backInOut', delay: animDelay + 0.25 },
-          }
-        ],
-      },
-      { 'id': 'ticket3LoadingBar',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, width: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, width: '15%'},
-            transition: { duration: 1.75, ease: 'backInOut', delay: animDelay + 0.3 },
-          }
-        ],
-      },
-      { 'id': 'ticket4LoadingBar',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, width: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, width: '89%'},
-            transition: { duration: 3.75, ease: 'backInOut', delay: animDelay + 0.35 },
-          }
-        ],
-      },
-      { 'id': 'ticket5LoadingBar',
-        'animStartOn': 'item3',
-
-        'initial': { opacity: 0, width: '0%' },
-        'animations': [
-          {
-            animate: { opacity: 1, width: '74%'},
-            transition: { duration: 3, ease: 'backInOut', delay: animDelay + 0.4 },
-          }
-        ],
-      },
-
-    // Version Control
-
-  ]
-  
-  // Agile timeline ticket objects
-  const agileTimelineTickets: AgileTimelineTicketsProps[] = [
-    { 'id': 'ticket1',
-      'size':'sm',
-      'status':'on hold',
-      'text':'Drag & Drop Package',
-      'loadingBarId': 'ticket1LoadingBar'
-    },
-    { 'id': 'ticket2',
-      'size': 'sm',
-      'status': 'completed',
-      'text': 'Charting Package',
-      'loadingBarId': 'ticket2LoadingBar'
-    },
-    { 'id': 'ticket3',
-      'size': 'sm',
-      'status': 'working on it',
-      'text': 'Fetch Data From Source',
-      'loadingBarId': 'ticket3LoadingBar'
-    },
-    { 'id': 'ticket4',
-      'size': 'sm',
-      'status': 'completed',
-      'text': 'Build Drag & Drop Layout',
-      'loadingBarId': 'ticket4LoadingBar'
-    },
-    { 'id': 'ticket5',
-      'size': 'sm',
-      'status': 'working on it',
-      'text': 'Implement Charts in Layout',
-      'loadingBarId': 'ticket5LoadingBar'
-    },
-  ]
-
-
-  // Animation Sequence Hook
-  useAnimationSequence(scope, animate, animationSequence, startAnimOn);
-
+  const getBarScale = (index: number) => {
+    if (index < active) return 1;
+    if (index > active) return 0;
+    return isAutoPlaying ?(0) :(1);
+  };
 
   return(<>
-    <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 10vh, 125px)', paddingBottom: 'calc(2.5vh + 1rem)' }}>
-      <Box ref={containerRef} sx={{ minHeight: '4000px', height: '300vh', }}>
-        <Box ref={scope} sx={{ position: 'sticky', top: '9vh', display: 'grid', gap: '50px', }}>
+    <Box
+      ref={sectionRef}
+      sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: '35px', padding: '0 16px calc(4.5vh + 1rem)', width: '100%' }}
+    >
 
-          {/* Section Title */}
-          <Box style={{ gridColumn: '1', gridRow: '1' }}>
-            <h4 
-              style={{ 
-                textAlign:'center',
-                letterSpacing: '2px',
-                fontWeight: 'normal',
-                fontSize:'clamp(22px, 5vw, 26px)'
-              }}
-            >
-              I Turn <CustomChip>Ideas</CustomChip> into
-            </h4>
+      {/* Section Title */}
+      <Box>
+        <h4
+          style={{
+            textAlign:'center',
+            letterSpacing: '2px',
+            fontWeight: 'normal',
+            fontSize:'clamp(22px, 5vw, 26px)'
+          }}
+        >
+          I Turn <WordCycler words={titleWords} /> into
+        </h4>
 
-            <h1
-              style={{ 
-                position:'relative',
-                top:'-2px',
-                textAlign: 'center',
-                letterSpacing: '-2px',
-                fontWeight: 'bold',
-                fontSize: 'clamp(48px, 8vw, 60px)',
-              }}
-            >
-              Achievable Web Apps
-            </h1>
-          </Box>
+        <h1
+          style={{
+            position:'relative',
+            top:'-2px',
+            textAlign: 'center',
+            letterSpacing: '-2px',
+            fontWeight: 'bold',
+            fontSize: 'clamp(40px, 8vw, 60px)',
+          }}
+        >
+          Achievable Web Apps
+        </h1>
+      </Box>
 
-
-          {/* Container for timeline components */}
-          <Box sx={{ position: 'sticky', top: '9vh', display: 'grid', gridTemplateColumns: (!isMobile) ?('unset') :('10vw max-content'), columnGap: '1vw' }}>
-
-            {/* Timeline guide */}
-            <Box
+      <Box
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        sx={{ display: 'grid', gap: '20px', width: '100%', maxWidth: '815px' }}
+      >
+        {/* Step Indicator */}
+        <Box
+          ref={barScope}
+          role='tablist'
+          aria-label='Process steps'
+          sx={{ display: 'grid', gridTemplateColumns: `repeat(${processSteps.length}, 1fr)`, gap: 'clamp(8px, 2vw, 16px)' }}
+        >
+          {processSteps.map((step, i) => (
+            <button
+              key           = {step.title}
+              type          = 'button'
+              role          = 'tab'
+              aria-selected = {i === active}
+              onClick       = {() => goToStep(i)}
               style={{
-                position: 'relative',
-                top:'4px',
-                gridColumn: '1', gridRow: '1',
-                height: '100%', 
-                transform: (!isMobile) ?'translateX(-3.5vw)': 'translateX(50%)',
+                display: 'grid',
+                gap: '8px',
+                padding: 0,
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                textAlign: 'left',
+                color: '#242424',
+                opacity: (i <= active) ?(1) :(0.55),
+                transition: 'opacity 0.3s'
               }}
             >
-              <span 
-                style={{
-                  display:'inline-block',
-                  height: `${scrollPercentage - 4}%`,
-                  width: '5px',
-                  backgroundColor: '#00304b',
-                  borderRadius: '10px',
-                }}
-              />
-
-              <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"
-                style={{ overflow: 'initial', position: 'absolute', top: '0%' }}
-              >
-                <motion.circle
-                  cx={'-2px'}
-                  cy={0}
-                  r="10"
-                  fill="#F9F7F4"
-                  stroke="#00304B"
-                  strokeWidth="5"
-                />
-              </svg>
-
-              <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"
-                style={{ overflow: 'initial', position: 'absolute', top: '33%' }}
-              >
-                <motion.circle
-                  cx={'-2px'}
-                  cy={0}
-                  r="10"
-                  fill="#F9F7F4"
-                  stroke="#00304B"
-                  strokeWidth="5"
-                />
-              </svg>
-
-              <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg"
-                style={{ overflow: 'initial', position: 'absolute', top: '66%' }}
-              >
-                <motion.circle
-                  cx={'-2px'}
-                  cy={0}
-                  r="10"
-                  fill="#F9F7F4"
-                  stroke="#00304B"
-                  strokeWidth="5"
-                />
-              </svg>
-
-            </Box>
-
-            {/* Idea */}
-            <motion.div
-              id      = 'carouselItem_Idea'
-              initial = {carouselItemAnimSettings.initial}
-              style   = {{ position: 'relative', gridColumn: 2, gridRow: 1 }}
-            >
-              <LegendContainer title={'Idea'}>
-                <p style={{ textAlign: 'center', fontSize:'24px', padding:'0 2rem' }}>
-                  Develop and implement an interactive dashboard to fetch internal data for analysis
-                </p>
-              </LegendContainer>
-            </motion.div>
-
-            {/* Wireframe */}
-            <motion.div
-              id      = 'carouselItem_Wireframe'
-              initial = {carouselItemAnimSettings.initial}
-              style   = {{ position: 'relative', gridColumn: 2, gridRow: 1 }}
-            >
-              <LegendContainer title={'Wireframe'}>
-                <Box sx={{ display:'flex', justifyContent:'center', alignItems:'center' }}>
-
-                <ResponsiveImage src="/images/wireframe-dashboard.png">
-                  <Image
-                    src={"/images/wireframe-dashboard.png"}
-                    alt={"A Picture of Me, Reed!"}
-                    draggable="false"
-                    width={415}
-                    height={286}
-                    style={{
-                      maxWidth:'415px',
-                      width: '100%',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      margin:'auto',
-                      padding:'2vh 0 1.25vh'
-                    }}
-                  />
-                </ResponsiveImage>
-
-                </Box>
-              </LegendContainer>
-            </motion.div>
-
-            {/* Agile Timeline */}
-            <motion.div
-              id      = 'carouselItem_AgileTimeline'
-              initial = {carouselItemAnimSettings.initial}
-              style   = {{ position: 'relative', gridColumn: 2, gridRow: 1 }}
-            >
-              <LegendContainer title={'Agile Timeline'} width='clamp(250px, 85vw, 815px)'>
-                <Box 
-                  sx={{ 
-                    display: 'flex',
-                    flexDirection:'column',
-                    gap: 'clamp(16px, 2.5vh, 25px)',
-                    padding: '0 1rem',
+              {/* Progress bar */}
+              <span style={{ display: 'block', height: '6px', borderRadius: '25px', backgroundColor: 'var(--color-stone)', overflow: 'hidden' }}>
+                <span
+                  data-step-bar = {i}
+                  style={{
+                    display: 'block',
+                    height: '100%',
+                    backgroundColor: 'var(--color-navy)',
+                    borderRadius: '25px',
+                    transformOrigin: 'left',
+                    transform: `scaleX(${getBarScale(i)})`
                   }}
-                  >
-                  {/* Title */}
-                  <Box sx={{ paddingTop:'2vh' }}>
-                    <p style={{ textAlign: 'center', fontSize: '24px' }}>
-                      Deliverables In
-                    </p>
-                    <p style={{ textAlign: 'center', fontWeight:'bold', letterSpacing:'-2px', fontSize:'28px' }}>
-                      2 - 3 Week Sprints
-                    </p>
-                  </Box>
+                />
+              </span>
 
-                  {/* Timeline */}
-                  <Box sx={{ display:'flex', }}>
-                    <span style={{ display: 'inline-block', height:'clamp(26px, 5vh, 50px)', border:'2px dashed #242424'}}/>
-
-                    <span style={{ display: 'inline-block', border: '2px dashed #242424', width:'100%', height:'0px', margin:'auto'}}/>
-
-                    <span style={{ display: 'inline-block', height: 'clamp(26px, 5vh, 50px)', border: '2px dashed #242424' }} />
-                  </Box>
-
-                  {/* Tickets */}
-                  <Box 
-                    sx={{ 
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 'clamp(16px, 2.5vh, 25px)',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {agileTimelineTickets.map((val, key) => {
-                      return(
-                        <motion.div
-                          key         = { key }
-                          id          = { val.id }
-                          transition  = {{ duration: 0.75, ease: 'easeInOut' }}
-                          style       = {{ position:'relative' }}
-                        >
-                          <TicketContainer 
-                            ticketNum     = {key + 1}
-                            size          = {val.size}
-                            status        = {val.status}
-                            text          = {val.text}
-                            loadingBarId  = {val.loadingBarId} 
-                          />
-                        </motion.div>
-                      )
-                    })}
-                  </Box>
-                </Box>
-              </LegendContainer>
-            </motion.div>
-          </Box>
-
+              <span style={{ fontSize: 'clamp(13px, 3.5vw, 18px)', fontWeight: (i === active) ?(700) :(400) }}>
+                <span style={{ fontWeight: 700, color: 'var(--color-navy)' }}>{String(i + 1).padStart(2, '0')}</span> {step.title}
+              </span>
+            </button>
+          ))}
         </Box>
+
+        {/* Caption & Controls */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '12px' }}>
+          <button
+            type        = 'button'
+            aria-label  = 'Previous step'
+            onClick     = {() => goToStep(active - 1)}
+            disabled    = {active === 0}
+            style       = {navButtonStyle(active === 0)}
+          >
+            <ArrowBackIcon fontSize='small' />
+          </button>
+
+          <motion.p
+            key         = {active}
+            aria-live   = 'polite'
+            initial     = {{ opacity: 0, y: 6 }}
+            animate     = {{ opacity: 1, y: 0 }}
+            transition  = {{ duration: 0.4, ease: 'easeOut' }}
+            style       = {{ textAlign: 'center', fontSize: 'clamp(15px, 3.8vw, 18px)' }}
+          >
+            {processSteps[active].caption}
+          </motion.p>
+
+          <button
+            type        = 'button'
+            aria-label  = 'Next step'
+            onClick     = {() => goToStep(active + 1)}
+            disabled    = {active === processSteps.length - 1}
+            style       = {navButtonStyle(active === processSteps.length - 1)}
+          >
+            <ArrowForwardIcon fontSize='small' />
+          </button>
+        </Box>
+      </Box>
+
+      {/* Card Stack */}
+      <Box
+        ref={stackRef}
+        sx={{
+          display: 'grid',
+          alignItems: 'start',
+          justifyItems: 'center',
+          width: '100%',
+          paddingTop: `${(processSteps.length - 1) * 22 + 10}px`
+        }}
+      >
+        {processSteps.map((step, i) => (
+          <motion.div
+            key         = {step.title}
+            initial     = {false}
+            animate     = {getCardAnim(i, started ?(active) :(-1), hoveredCard === i)}
+            transition  = {{ duration: 0.85, ease: 'easeInOut', type: 'spring', bounce: 0, filter: { duration: 0.2 } }}
+            aria-hidden = {i !== active}
+
+            // Past cards peeking out behind the active one darken on hover & go back to their step on click
+            // (hover tracked in state rather than whileHover, which can stick when it's toggled off mid-hover)
+            onMouseEnter = {() => setHoveredCard(i)}
+            onMouseLeave = {() => setHoveredCard(null)}
+            onClick     = {(i < active) ?(() => goToStep(i)) :(undefined)}
+            title       = {(i < active) ?(`Back to ${step.title}`) :(undefined)}
+            style={{
+              gridColumn: 1,
+              gridRow: 1,
+              zIndex: i,
+              transformOrigin: 'top center',
+              pointerEvents: (i > active) ?('none') :('auto'),
+              cursor: (i < active) ?('pointer') :('auto'),
+              maxWidth: '100%'
+            }}
+          >
+            <LegendContainer title={step.title} width={step.width} hideTitle={i < active}>
+              {step.content(i === active)}
+            </LegendContainer>
+          </motion.div>
+        ))}
       </Box>
     </Box>
   </>)
 }
 
-export default IdeasToWebApps;
+const navButtonStyle = (disabled: boolean) => ({
+  display: 'grid',
+  placeItems: 'center',
+  height: '40px',
+  width: '40px',
+  border: '3px solid #242424',
+  borderRadius: '50%',
+  backgroundColor: 'var(--color-cream)',
+  color: '#242424',
+  cursor: disabled ?('default') :('pointer'),
+  opacity: disabled ?(0.3) :(1),
+  transition: 'opacity 0.3s'
+});
 
+export default IdeasToWebApps;
