@@ -20,7 +20,7 @@ export const aboutMe = {
   // From the resume
   stats   : [
     { value: '6+',      label: 'Years shipping cloud apps between AWS & Azure' },
-    { value: '10',      label: 'Package serverless monorepo behind the insurance platform I help build' },
+    { value: '10',      label: 'Package serverless monorepo behind the insurance platform I help build upon' },
     { value: '7 → 24',  label: 'Startup growth I helped drive' },
   ] as AboutMeStat[],
 

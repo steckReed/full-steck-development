@@ -55,7 +55,7 @@ export const myProjects: ProjectsProps[] = [
     features: [
       'Utilizes Google Firebase and Firestore for backend and database management',
       'Has secure auth implemented for users to propose and vote on cost evaluation of card phrases and effects',
-      'Card images are converted from .png to .avif providing ~98% reduction in file size and cached client-side on-load, which means faster load times for the user at a fraction of the cost',
+      'Card images are converted from .png to .avif providing ~98% reduction in file size and having implemented client-side caching, that means faster load times for the user at a fraction of the cost',
     ],
   },
   { name: 'Star Wars Unlimited: Sealed Simulator',

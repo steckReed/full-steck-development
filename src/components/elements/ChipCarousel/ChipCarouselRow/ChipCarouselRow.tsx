@@ -33,6 +33,8 @@ const ChipCarouselRow: React.FC<ChipCarouselRowProps> = ({
       if (rowRef.current) {
         // const rowWidth = rowRef.current.getBoundingClientRect().width;
         const rowWidth = rowRef.current.offsetWidth;
+        if (rowWidth === 0) return; // Hidden (e.g. display: none on mobile): nothing to measure, and dividing by 0 would crash
+
         setRowWidth(rowWidth);
 
         const repeats = Math.ceil(screenWidth / rowWidth) + 1;

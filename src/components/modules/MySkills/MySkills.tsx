@@ -39,8 +39,8 @@ const MySkills = () => {
           My Skills
         </h1>
 
-        {/* Decorative marquee (static list below is the readable version) */}
-        <Box aria-hidden='true'>
+        {/* Decorative marquee (static list below is the readable version), hidden on mobile */}
+        <Box aria-hidden='true' sx={{ '@media (max-width: 768px)': { display: 'none' } }}>
           <ChipCarousel
             rows        = {skillCategories.map((category) => category.skills)}
             directions  = {skillCategories.map((_, i) => (i % 2 === 0) ?('left') :('right'))}

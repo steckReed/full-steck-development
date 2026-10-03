@@ -4,6 +4,7 @@ import { ReactNode, useState } from 'react';
 import { Box } from '@mui/material';
 import { motion, MotionValue, useMotionValueEvent } from 'motion/react';
 import ScaleToFit from '@/components/elements/ScaleToFit/ScaleToFit';
+import useIsMobile from '@/functions/useIsMobile';
 import { aboutMe } from '@/data/aboutMe';
 
 interface Props{
@@ -11,6 +12,7 @@ interface Props{
 }
 
 const ink = '#242424';
+const mobile = '@media (max-width: 768px)';
 const hobbyColors = ['var(--color-plum)', 'var(--color-navy)', 'var(--color-rust)', 'var(--color-mustard)', 'var(--color-olive)'];
 
 // The entrance plays once (on a timer, not scrubbed by scroll) when the face is mostly on screen,
@@ -19,6 +21,7 @@ const playAt  = 0.2; // ~45% of the cube on screen
 const resetAt = 0.02;
 
 const AboutMeFace = ({ progress }: Props) => {
+  const isMobile          = useIsMobile();
   const [shown, setShown] = useState(() => progress.get() >= playAt);
 
   useMotionValueEvent(progress, 'change', (value) => {
@@ -30,7 +33,8 @@ const AboutMeFace = ({ progress }: Props) => {
     <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: '12px' }}>
 
       {/* Content */}
-      <ScaleToFit minLayoutWidth={560} padTop={24} padBottom={24} fillWidth>
+      {/* Mobile lays out narrower (single column), so it scales up larger on the card */}
+      <ScaleToFit minLayoutWidth={isMobile ?(420) :(560)} padTop={24} padBottom={24} fillWidth>
         <Box sx={{ display: 'grid', gap: '28px', padding: '0 clamp(16px, 4%, 48px)' }}>
 
           {/* Title */}
@@ -40,15 +44,16 @@ const AboutMeFace = ({ progress }: Props) => {
             </h1>
           </Reveal>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(170px, 0.8fr) 1.6fr', gap: '28px', alignItems: 'start' }}>
+          {/* Desktop: stats column beside the text. Mobile: stats in one row above the text */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(170px, 0.8fr) 1.6fr', gap: '28px', alignItems: 'start', [mobile]: { gridTemplateColumns: '1fr', gap: '22px' } }}>
 
             {/* Quick Stats */}
-            <Box sx={{ display: 'grid', gap: '16px' }}>
+            <Box sx={{ display: 'grid', gap: '16px', [mobile]: { gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' } }}>
               {aboutMe.stats.map((stat, i) => (
                 <Reveal key={stat.label} show={shown} delay={0.15 + i * 0.1} x={-30}>
                   <Box className='paper paper-navy' style={{ width: '100%' }}>
                     <Box sx={{ backgroundColor: 'var(--color-cream)', border: `3px solid ${ink}`, borderRadius: '12px', padding: '10px 14px' }}>
-                      <p style={{ fontWeight: 800, fontSize: '30px', letterSpacing: '-1px', lineHeight: 1.1, color: 'var(--color-navy)' }}>{stat.value}</p>
+                      <Box component='p' sx={{ fontWeight: 800, fontSize: '30px', letterSpacing: '-1px', lineHeight: 1.1, whiteSpace: 'nowrap', color: 'var(--color-navy)', [mobile]: { fontSize: '25px' } }}>{stat.value}</Box>
                       <p style={{ fontSize: '14px', letterSpacing: '0.5px' }}>{stat.label}</p>
                     </Box>
                   </Box>
