@@ -1,6 +1,7 @@
 import { Box } from '@mui/material';
 import HeroSection from '../HeroSection/HeroSection';
-import ProjectsCarousel from '../ProjectsCarousel/ProjectsCarousel';
+import ProjectHighlight from '../ProjectHighlight/ProjectHighlight';
+import ProjectsAccordion from '../ProjectsAccordion/ProjectsAccordion';
 
 const MeAndProjects = () => {
   return(<>
@@ -10,9 +11,12 @@ const MeAndProjects = () => {
       <Box sx={{ width:'100%' }}>
         <HeroSection />
       </Box>
-      
+
       {/* My Projects */}
-      <ProjectsCarousel/>
+      <ProjectHighlight />
+
+      {/* More Projects */}
+      <ProjectsAccordion />
     </Box>
   </>)
 }

@@ -9,6 +9,10 @@ export interface ProjectsProps {
   status        ?: string;
   referenceLink ?: string;
   tags          ?: string[];
+  image         ?: string;
+  summary       ?: string;
+  features      ?: string[];
+  highlight     ?: boolean;
 }
 
 export interface MTGCardProps {

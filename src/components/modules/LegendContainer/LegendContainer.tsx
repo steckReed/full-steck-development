@@ -17,8 +17,8 @@ const LegendContainer = ({
 }: Props) => {
 
   return (<>
+  <Box className="paper paper-olive">
     <Box 
-      className={styles['shadow']} 
       sx={{ 
         backgroundColor:'#F9F7F4',
         border:'4px solid #242424',
@@ -62,6 +62,7 @@ const LegendContainer = ({
       <Box sx={{ padding:'1.5rem 1rem' }}>
         {children}
       </Box>
+    </Box>
     </Box>
   </>)
 }
