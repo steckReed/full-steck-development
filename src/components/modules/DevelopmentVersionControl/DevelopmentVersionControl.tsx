@@ -7,10 +7,14 @@ import useAnimationSequence from '@/hooks/useAnimationSequence';
 import useRefScrollPercentage from '@/hooks/useRefScrollPercentage';
 import useIsMobile from '@/functions/useIsMobile';
 import TicketContainer from '@/components/elements/TicketContainer/TicketContainer';
-import GitHubIcon from '@mui/icons-material/GitHub';
+import VersionControlTitle from './VersionControlTitle/VersionControlTitle';
 
 
-const DevelopmentVersionControl = () => {
+interface Props{
+  showTitle?: boolean; // ProcessCube shows the title on its last face, then this section continues below it
+}
+
+const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
   const isMobile              = useIsMobile();
   const [scope, animate]      = useAnimate();
   const { scrollYProgress }   = useScroll({ target: scope })
@@ -195,33 +199,7 @@ const DevelopmentVersionControl = () => {
     <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 10vh, 125px)', paddingBottom: 'calc(2.5vh + 1rem)' }}>
       <Box ref={scope} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '4000px', height: '300vh', gap: 'clamp(45px, 8vh, 125px)'}}>
         {/* Section Title */}
-        <motion.div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
-          <GitHubIcon sx={{ fontSize: 'clamp(175px, 45vw, 300px)', color: '#202328' }} />
-
-          <h1
-            style={{
-              textAlign: 'center',
-              letterSpacing: '-1px',
-              fontWeight: 'bold',
-              fontSize: 'clamp(48px, 8vw, 60px)',
-            }}
-          >
-            Version Control
-          </h1>
-
-          <h4
-            style={{
-              position: 'relative',
-              top: '-2px',
-              textAlign: 'center',
-              letterSpacing: '2px',
-              fontWeight: 'normal',
-              fontSize: 'clamp(22px, 5vw, 26px)'
-            }}
-          >
-            Git Good
-          </h4>
-        </motion.div>
+        {(showTitle) && <VersionControlTitle />}
 
         {/* Branch & Ticket Structure */}
         <Box sx={{ position:'relative', display:'flex', height: '100%', transform:'translateX(14%)' }}>

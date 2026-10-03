@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import { useState } from 'react';
 import InfiniteScroll from 'react-infinite-scroller';
 import DevelopmentVersionControl from '@/components/modules/DevelopmentVersionControl/DevelopmentVersionControl';
-import IdeasToWebApps from '@/components/modules/IdeasToWebApps/IdeasToWebApps';
+import ProcessCube from '@/components/modules/ProcessCube/ProcessCube';
 import MeAndProjects from '@/components/modules/MeAndProjects/MeAndProjects';
 import AboutMe from '@/components/modules/AboutMe/AboutMe';
 import MySkills from '@/components/modules/MySkills/MySkills';
@@ -31,11 +31,11 @@ export default function Home() {
           {/* My Skills */}
           <MySkills/>
 
-          {/* Ideas to Web Apps (Vertical Carousel) */}
-          <IdeasToWebApps />
+          {/* How I Work, Ideas to Web Apps & Version Control title (scroll-driven 3D cube) */}
+          <ProcessCube />
 
-          {/* Development & Version Control */}
-          <DevelopmentVersionControl />
+          {/* Development & Version Control (title shown on the cube's last face) */}
+          <DevelopmentVersionControl showTitle={false} />
 
           {/* About Me */}
           <AboutMe />

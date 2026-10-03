@@ -43,8 +43,8 @@ const MySkills = () => {
         <Box aria-hidden='true'>
           <ChipCarousel
             rows        = {skillCategories.map((category) => category.skills)}
-            directions  = {['left', 'right', 'left', 'right']}
-            speeds      = {[7, 5, 6, 4]}
+            directions  = {skillCategories.map((_, i) => (i % 2 === 0) ?('left') :('right'))}
+            speeds      = {skillCategories.map((_, i) => [7, 5, 6, 4, 5][i % 5])}
             colors      = {skillCategories.map((category) => category.color)}
           />
         </Box>

@@ -2,14 +2,22 @@
 
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Box } from '@mui/material';
-import { AnimationPlaybackControls, motion, useAnimate, useInView, useReducedMotion } from 'motion/react';
-import Image from "next/image";
+import { AnimationPlaybackControls, motion, MotionValue, useAnimate, useInView, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform } from 'motion/react';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import LegendContainer from '../LegendContainer/LegendContainer';
+import WireframeStep from './WireframeStep/WireframeStep';
 import AgileTimelineStep from './AgileTimelineStep/AgileTimelineStep';
+import FeatureShippingStep from './FeatureShippingStep/FeatureShippingStep';
 import WordCycler from '@/components/elements/WordCycler/WordCycler';
-import ResponsiveImage from '@/components/elements/ResponsiveImage';
+
+interface Props{
+  // Controlled mode (used by ProcessCube): scroll progress 0 to 1 across all steps drives the active step & bars
+  progress      ?: MotionValue<number>;
+  started       ?: boolean;                  // Controlled mode: show the card stack / start the word cycler
+  onStepSelect  ?: (step: number) => void;   // Controlled mode: clicks ask the parent to scroll to a step
+  onHoverChange ?: (hovered: boolean) => void; // Controlled mode: lets the parent pause its auto-play while the steps are hovered
+}
 
 interface ProcessStep {
   title     : string;
@@ -28,6 +36,9 @@ const startScreenOffset = '40%';
 // Seconds to hold on the first step before auto-play begins, giving the title word cycler time to settle
 const autoPlayStartDelay = 1;
 
+// Wide cards size to the card stack (a CSS container), not the window, so they lay out correctly when the cube face scales them down
+const wideCardWidth = 'min(815px, 100cqw)';
+
 const processSteps: ProcessStep[] = [
   { title: 'Idea',
     caption: 'Every project/feature starts with a need and desire to fill it: who it\'s for and what problem it solves.',
@@ -41,35 +52,24 @@ const processSteps: ProcessStep[] = [
   { title: 'Wireframe',
     caption: 'Wireframe is sketched as proof of concept to ensure needs can be met before implementation.',
     duration: 5,
-    content: () => (
-      <Box sx={{ display:'flex', justifyContent:'center', alignItems:'center' }}>
-        <ResponsiveImage src="/images/wireframe-dashboard.png">
-          <Image
-            src={"/images/wireframe-dashboard.png"}
-            alt={"Wireframe of a dashboard with bar, line, pie, and scatter charts"}
-            draggable="false"
-            width={415}
-            height={286}
-            style={{
-              maxWidth:'415px',
-              width: '100%',
-              height: 'auto',
-              objectFit: 'contain',
-              margin:'auto',
-              padding:'2vh 0 1.25vh'
-            }}
-          />
-        </ResponsiveImage>
-      </Box>
-    ),
+    content: (active) => <WireframeStep active={active} />,
   },
   { title: 'Agile Timeline',
     caption: 'To keep on-schedule, work is broken into tickets and shipped in short sprints, so progress is visible early.',
     duration: 7,
-    width: 'clamp(250px, 85vw, 815px)',
+    width: wideCardWidth,
     content: (active) => <AgileTimelineStep active={active} />,
   },
+  { title: 'Feature Shipping',
+    caption: 'The finished Feature ships: a working dashboard built on real data. Try filtering it!',
+    duration: 9,
+    width: wideCardWidth,
+    content: (active) => <FeatureShippingStep active={active} />,
+  },
 ];
+
+// Seconds each step stays up while auto-playing (also used by ProcessCube's scroll auto-play)
+export const processStepDurations = processSteps.map((step) => step.duration);
 
 // Card stack positions: upcoming cards wait below, past cards peek out behind the active one (darkened while hovered)
 const getCardAnim = (index: number, active: number, hovered: boolean) => {
@@ -79,7 +79,15 @@ const getCardAnim = (index: number, active: number, hovered: boolean) => {
   return { opacity: 1, y: depth * -22, scale: 1 - depth * 0.05, filter: (depth > 0 && hovered) ?('brightness(0.9)') :('brightness(1)') };
 };
 
-const IdeasToWebApps = () => {
+const IdeasToWebApps = ({
+  progress,
+  started: controlledStarted = false,
+  onStepSelect,
+  onHoverChange
+}: Props) => {
+  const isControlled                  = !!progress;
+  const fallbackProgress              = useMotionValue(0);
+  const stepsProgress                 = progress ?? fallbackProgress;
   const sectionRef                    = useRef<HTMLDivElement>(null);
   const inView                        = useInView(sectionRef, { amount: 0.4 });
   const stackRef                      = useRef<HTMLDivElement>(null);
@@ -92,7 +100,18 @@ const IdeasToWebApps = () => {
   const [started, setStarted]         = useState(false);
   const [hovered, setHovered]         = useState(false);
   const [hoveredCard, setHoveredCard] = useState<number | null>(null);
-  const isAutoPlaying                 = autoPlay && !reduceMotion;
+  const isAutoPlaying                 = autoPlay && !reduceMotion && !isControlled;
+  const hasStarted                    = isControlled ?(controlledStarted) :(started);
+
+  // Controlled: active step follows scroll progress
+  const getStepFromProgress = (value: number) => Math.min(processSteps.length - 1, Math.max(0, Math.floor(value * processSteps.length)));
+  useMotionValueEvent(stepsProgress, 'change', (value) => {
+    if (isControlled) setActive(getStepFromProgress(value));
+  });
+  useEffect(() => {
+    if (isControlled) setActive(getStepFromProgress(stepsProgress.get()));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isControlled]);
 
   // Start once the card stack has scrolled into the upper part of the screen
   useEffect(() => {
@@ -127,10 +146,13 @@ const IdeasToWebApps = () => {
     else barControls.current?.play();
   }, [hovered, inView]);
 
-  // Any manual navigation hands control over to the user
+  // Any manual navigation hands control over to the user (controlled: parent scrolls to the step instead)
   const goToStep = (step: number) => {
+    const target = Math.max(0, Math.min(processSteps.length - 1, step));
+    if (isControlled) { onStepSelect?.(target); return; }
+
     setAutoPlay(false);
-    setActive(Math.max(0, Math.min(processSteps.length - 1, step)));
+    setActive(target);
   };
 
   const getBarScale = (index: number) => {
@@ -142,7 +164,7 @@ const IdeasToWebApps = () => {
   return(<>
     <Box
       ref={sectionRef}
-      sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: '35px', padding: '0 16px calc(4.5vh + 1rem)', width: '100%' }}
+      sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: '25px', padding: '0 16px calc(4.5vh + 1rem)', width: '100%' }}
     >
 
       {/* Section Title */}
@@ -155,7 +177,7 @@ const IdeasToWebApps = () => {
             fontSize:'clamp(22px, 5vw, 26px)'
           }}
         >
-          I Turn <WordCycler words={titleWords} /> into
+          I Turn <WordCycler words={titleWords} start={isControlled ?(controlledStarted) :(undefined)} /> into
         </h4>
 
         <h1
@@ -173,8 +195,8 @@ const IdeasToWebApps = () => {
       </Box>
 
       <Box
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseEnter={() => { setHovered(true); onHoverChange?.(true); }}
+        onMouseLeave={() => { setHovered(false); onHoverChange?.(false); }}
         sx={{ display: 'grid', gap: '20px', width: '100%', maxWidth: '815px' }}
       >
         {/* Step Indicator */}
@@ -207,17 +229,14 @@ const IdeasToWebApps = () => {
             >
               {/* Progress bar */}
               <span style={{ display: 'block', height: '6px', borderRadius: '25px', backgroundColor: 'var(--color-stone)', overflow: 'hidden' }}>
-                <span
-                  data-step-bar = {i}
-                  style={{
-                    display: 'block',
-                    height: '100%',
-                    backgroundColor: 'var(--color-navy)',
-                    borderRadius: '25px',
-                    transformOrigin: 'left',
-                    transform: `scaleX(${getBarScale(i)})`
-                  }}
-                />
+                {isControlled ?(
+                  <ScrollStepBar progress={stepsProgress} index={i} />
+                ) :(
+                  <span
+                    data-step-bar = {i}
+                    style={{ ...barFillStyle, transform: `scaleX(${getBarScale(i)})` }}
+                  />
+                )}
               </span>
 
               <span style={{ fontSize: 'clamp(13px, 3.5vw, 18px)', fontWeight: (i === active) ?(700) :(400) }}>
@@ -270,6 +289,7 @@ const IdeasToWebApps = () => {
           alignItems: 'start',
           justifyItems: 'center',
           width: '100%',
+          containerType: 'inline-size', // Lets cards size with cqw units
           paddingTop: `${(processSteps.length - 1) * 22 + 10}px`
         }}
       >
@@ -277,7 +297,7 @@ const IdeasToWebApps = () => {
           <motion.div
             key         = {step.title}
             initial     = {false}
-            animate     = {getCardAnim(i, started ?(active) :(-1), hoveredCard === i)}
+            animate     = {getCardAnim(i, hasStarted ?(active) :(-1), hoveredCard === i)}
             transition  = {{ duration: 0.85, ease: 'easeInOut', type: 'spring', bounce: 0, filter: { duration: 0.2 } }}
             aria-hidden = {i !== active}
 
@@ -306,6 +326,21 @@ const IdeasToWebApps = () => {
     </Box>
   </>)
 }
+
+const barFillStyle = {
+  display: 'block',
+  height: '100%',
+  backgroundColor: 'var(--color-navy)',
+  borderRadius: '25px',
+  transformOrigin: 'left',
+};
+
+// Controlled step bar: fills as its share of the scroll progress is covered
+const ScrollStepBar = ({ progress, index }: { progress: MotionValue<number>, index: number }) => {
+  const scaleX = useTransform(progress, (value) => Math.min(1, Math.max(0, value * processSteps.length - index)));
+
+  return <motion.span style={{ ...barFillStyle, scaleX }} />;
+};
 
 const navButtonStyle = (disabled: boolean) => ({
   display: 'grid',
