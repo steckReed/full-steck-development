@@ -40,14 +40,14 @@ const MySkills = () => {
         </h1>
 
         {/* Decorative marquee (static list below is the readable version), hidden on mobile */}
-        <Box aria-hidden='true' sx={{ '@media (max-width: 768px)': { display: 'none' } }}>
+        {/* <Box aria-hidden='true' sx={{ '@media (max-width: 768px)': { display: 'none' } }}>
           <ChipCarousel
             rows        = {skillCategories.map((category) => category.skills)}
             directions  = {skillCategories.map((_, i) => (i % 2 === 0) ?('left') :('right'))}
             speeds      = {skillCategories.map((_, i) => [7, 5, 6, 4, 5][i % 5])}
             colors      = {skillCategories.map((category) => category.color)}
           />
-        </Box>
+        </Box> */}
       </Box>
 
       {/* Skills by Category */}
