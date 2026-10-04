@@ -5,6 +5,8 @@ import { Box } from '@mui/material';
 import { animate, motion, MotionValue, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from 'motion/react';
 import AboutMeFace from './AboutMeFace/AboutMeFace';
 import VersionFace from './VersionFace/VersionFace';
+import PixelCurtain from '@/components/elements/PixelCurtain/PixelCurtain';
+import useNavbarTint from '@/hooks/useNavbarTint';
 import IdeasToWebApps, { processStepDurations } from '../IdeasToWebApps/IdeasToWebApps';
 import VersionControlTitle from '../DevelopmentVersionControl/VersionControlTitle/VersionControlTitle';
 import ScaleToFit from '@/components/elements/ScaleToFit/ScaleToFit';
@@ -16,7 +18,7 @@ import PauseRoundedIcon from '@mui/icons-material/PauseRounded';
 const segments = {
   introHold       : 0.4,  // Face 1: About Me (its entrance is timed, so this is just a short pause before the turn)
   rotateToProcess : 0.35, // Turn zone: entering it flips to face 2 (the flip itself is timed, not scrubbed)
-  processLead     : 0.3,  // Face 2 settles & the title word cycler plays
+  processLead     : 0,    // Scroll between face 2 arriving & step 1 starting (0 = the slides start right away)
   processSteps    : processStepDurations.length * 0.8, // Face 2: one equal block of scroll per step
   rotateToVersion : 0.35, // Turn zone: entering it flips to face 3
   versionHold     : 0.6,  // Face 3: Version Control title & the main branch starts growing, then the page scrolls on
@@ -28,7 +30,6 @@ const processStepCount = processStepDurations.length;
 const flipDuration = 0.9;
 
 // Auto-play on face 2: gently scrolls the page through the steps whenever the visitor stops scrolling
-const autoPlayLeadSeconds = 1.5;   // Time spent crossing the short lead-in before step 1
 const autoPlayIdleMs      = 1200;  // How long after the visitor's last scroll / touch / key before auto-play resumes
 const autoPlayEndGap      = 0.002; // Stops just short of the end of the steps, so the cube never flips on its own
 const upScrollGraceMs     = 1500;  // Scrolling up right after arriving on face 2 (e.g. coming back from face 3) doesn't stop auto-play
@@ -38,6 +39,10 @@ const cubeWidth   = 'min(calc(100vw - 64px), 880px)'; // 32px each side keeps th
 const cubeHeight  = 'calc(100dvh - 124px)'; // NavBar (48px) + control bar & gap (52px) + bottom (24px)
 const cubeDepth   = 'calc(var(--cube-w) / 2)';
 const stagePaddingBottom = 24;
+
+// Pixel-curtain background behind the cube
+const curtainColor = '#CFCEB7'; // --color-stone (canvas needs a real color value)
+const curtainCoverFrom = 'bottom' as 'top' | 'bottom'; 
 
 // Share of the face 1 animation that plays while the cube is still scrolling into view
 const introEntryShare = 0.45;
@@ -104,6 +109,11 @@ const ProcessCube = () => {
   const introProgress = useTransform(() => entryProgress.get() * introEntryShare + introHoldProgress.get() * (1 - introEntryShare));
   const stepsProgress = useTransform(scrollYProgress, [breakpoints.stepsStart, breakpoints.stepsEnd], [0, 1]);
   const versionHoldProgress = useTransform(scrollYProgress, [breakpoints.versionFaceStart, 1], [0, 1]);
+  const curtainCover        = useTransform(entryProgress, [0.1, 0.95], [0, 1]);
+  const curtainClear        = useTransform(versionHoldProgress, [0, 0.9], [0, 1]);
+
+  // Match the NavBar to whatever's behind it: cream normally, the curtain color while this cube's stage sits under it
+  useNavbarTint({ targetRef: containerRef, cover: curtainCover, clear: curtainClear, color: curtainColor, coverFrom: curtainCoverFrom });
   const versionBorderColor  = useTransform(versionHoldProgress, [0, 1], ['rgba(36, 36, 36, 1)', 'rgba(36, 36, 36, 0)']); // Face 3's box fades out while still pinned
 
   // After the cube unpins: 0 to 1 as it scrolls up off the screen (face 3's bottom opens & the branch continues out)
@@ -191,11 +201,11 @@ const ProcessCube = () => {
         const range     = el.offsetHeight - window.innerHeight;
         const top       = el.getBoundingClientRect().top + window.scrollY;
         const stepLen   = (breakpoints.stepsEnd - breakpoints.stepsStart) / processStepCount;
-        const rate      = (progress < breakpoints.stepsStart)
-          ?((breakpoints.stepsStart - breakpoints.introEnd) / autoPlayLeadSeconds)
-          :(stepLen / processStepDurations[Math.min(processStepCount - 1, Math.floor((progress - breakpoints.stepsStart) / stepLen))]);
+        const rate      = stepLen / processStepDurations[Math.min(processStepCount - 1, Math.max(0, Math.floor((progress - breakpoints.stepsStart) / stepLen)))];
 
         if (targetY === null || Math.abs(targetY - window.scrollY) > 2) targetY = window.scrollY;
+        // Still before step 1 (e.g. idle in the turn zone): skip straight to it, so the slides start without a delay
+        targetY = Math.max(targetY, top + breakpoints.stepsStart * range);
         const endY = top + (breakpoints.stepsEnd - autoPlayEndGap) * range;
         targetY = Math.min(endY, targetY + rate * range * dt);
         window.scrollTo({ top: targetY, behavior: 'instant' });
@@ -278,8 +288,11 @@ const ProcessCube = () => {
           '--cube-h': cubeHeight,
         }}
       >
-        {/* Control Bar */}
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: 'var(--cube-w)', minHeight: '40px' }}>
+        {/* Pixel curtain background (behind everything on the stage) */}
+        <PixelCurtain cover={curtainCover} clear={curtainClear} color={curtainColor} coverFrom={curtainCoverFrom} />
+
+        {/* Control Bar (positioned so it paints above the curtain) */}
+        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: 'var(--cube-w)', minHeight: '40px' }}>
           <motion.p
             animate     = {scrollNudge ?({ y: [0, -7, 0, -3, 0] }) :({ y: 0 })}
             transition  = {scrollNudge ?({ duration: 0.9, ease: 'easeOut', repeat: 1, repeatDelay: 0.8 }) :({ duration: 0.2 })}

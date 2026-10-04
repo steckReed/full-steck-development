@@ -134,7 +134,7 @@ const FeatureShippingStep = ({ active }: Props) => {
   };
 
   return(<>
-    <Box sx={{ display: 'grid', gap: '14px', padding: '1.25rem 0.75rem 0.5rem' }}>
+    <Box sx={{ display: 'grid', gap: '14px', padding: '1.25rem 0.75rem 0.5rem', containerType: 'inline-size' }}>
 
       {/* Header */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '4px 12px' }}>
@@ -172,7 +172,8 @@ const FeatureShippingStep = ({ active }: Props) => {
       </Box>
 
       {/* Charts (same layout as the wireframe: narrow left column, wide right column) */}
-      <Box key={replayKey} sx={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '12px' }}>
+      {/* Stacks to one column when the dashboard itself is narrow (e.g. the standalone playground on phones) */}
+      <Box key={replayKey} sx={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '12px', '@container (max-width: 400px)': { gridTemplateColumns: '1fr' } }}>
         <ChartPanel title='Cards by Rarity' color='var(--color-mustard)'>
           {(filtered.length === 0) ?(<EmptyChart />) :(
           <BarChart
@@ -202,10 +203,11 @@ const FeatureShippingStep = ({ active }: Props) => {
 
         <ChartPanel title='Aspect Split' color='var(--color-rust)'>
           {(aspectData.length === 0) ?(<EmptyChart />) :(
+          // Radii are % of the space available, so the donut shrinks with its panel instead of clipping on phones
           <PieChart
             height    = {170}
-            margin    = {{ top: 10, right: 10, bottom: 10, left: 10 }}
-            series    = {[{ data: aspectData, innerRadius: 34, outerRadius: 72, paddingAngle: 2, cornerRadius: 4, highlightScope: { faded: 'global', highlighted: 'item' } }]}
+            margin    = {{ top: 12, right: 12, bottom: 12, left: 12 }}
+            series    = {[{ data: aspectData, innerRadius: '44%', outerRadius: '94%', paddingAngle: 2, cornerRadius: 4, highlightScope: { faded: 'global', highlighted: 'item' } }]}
             slotProps = {{ legend: { hidden: true } }}
             sx        = {{ ...chartSx, '& .MuiPieArc-root': { stroke: ink, strokeWidth: 2 } }}
           />

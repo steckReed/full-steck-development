@@ -1,12 +1,12 @@
 'use client';
 
+import { ReactNode, useEffect, useId, useRef, useState } from 'react';
 import { Box } from '@mui/material';
-import { motion, useAnimate, useScroll, useTransform } from 'motion/react';
-import { AnimationSequence } from '@/types/types';
-import useAnimationSequence from '@/hooks/useAnimationSequence';
-import useRefScrollPercentage from '@/hooks/useRefScrollPercentage';
-import useIsMobile from '@/functions/useIsMobile';
+import { motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
+import { TicketTypes } from '@/types/types';
 import TicketContainer from '@/components/elements/TicketContainer/TicketContainer';
+import Confetti from '@/components/elements/Confetti/Confetti';
+import LocalOfferRoundedIcon from '@mui/icons-material/LocalOfferRounded';
 import VersionControlTitle from './VersionControlTitle/VersionControlTitle';
 
 
@@ -14,473 +14,290 @@ interface Props{
   showTitle?: boolean; // ProcessCube shows the title on its last face, then this section continues below it
 }
 
+interface GraphTicket {
+  num   : number;
+  text  : string;
+}
+
+interface MainCommit {
+  at      : number;
+  side    : 'left' | 'right';
+  ticket  : GraphTicket;
+}
+
+interface FeatureBranch {
+  name      : string;
+  color     : string;
+  side      : 'left' | 'right';
+  forkAt    : number;
+  mergeAt   : number;
+  commits   : number[];
+  ticket    : GraphTicket;
+}
+
+// Packages picked up first, committed straight to main
+const mainCommits: MainCommit[] = [
+  { at: 0.04, side: 'left',  ticket: { num: 1, text: 'Drag & Drop Package' } },
+  { at: 0.12, side: 'right', ticket: { num: 2, text: 'Charting Package' } },
+];
+
+// Feature branches: fork off main, collect commits, merge back (their ticket flips to completed on merge)
+const featureBranches: FeatureBranch[] = [
+  { 
+    name: 'feature/fetch-data', 
+    color: '#BF912E', 
+    side: 'right', 
+    forkAt: 0.18, 
+    mergeAt: 0.48, 
+    commits: [0.30, 0.39],       
+    ticket: { num: 3, text: 'Fetch Data From Source' } },
+  { 
+    name: 'feature/dnd-layout', 
+    color: '#00304B', 
+    side: 'left', 
+    forkAt: 0.27, 
+    mergeAt: 0.72, 
+    commits: [0.40, 0.52, 0.62], 
+    ticket: { num: 4, text: 'Build Drag & Drop Layout' } },
+  { 
+    name: 'feature/charts',     
+    color: '#525415', 
+    side: 'right', 
+    forkAt: 0.55, 
+    mergeAt: 0.88, 
+    commits: [0.67, 0.78],      
+    ticket: { num: 5, text: 'Implement Charts in Layout' } 
+  },
+];
+
+const ink           = '#242424';
+const scrollLength  = 3.5;   // Section height in screen heights (pinned for scrollLength - 1 of them)
+const drawEnd       = 0.9;   // Share of the section's scroll it takes to draw the whole graph (the rest holds on the Release)
+const graphTop      = 72;    // px: where graph events start (below the NavBar). The main line itself starts at 0 to meet the cube.
+const releaseSpace  = 175;   // px kept at the bottom for the Release card
+
 const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
-  const isMobile              = useIsMobile();
-  const [scope, animate]      = useAnimate();
-  const { scrollYProgress }   = useScroll({ target: scope })
-  const scrollPercentage      = useRefScrollPercentage(scope);
-  const mainBranchPath        = useTransform(scrollYProgress, [0, 1], ["0%", "100%"]);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const stageRef      = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const clipId        = `vc-reveal-${useId().replace(/:/g, '')}`; // Unique per copy (the page repeats as you scroll)
 
-  // Map Containing Animation Trigger Points
-  const startAnimOn = new Map([
-    // Default Enter of Element
-    ['enter'        ,scrollPercentage > 0],
+  // 0 to 1 across the pinned section
+  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
 
+  // Measure the stage so the graph's geometry fits the screen
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!stage) return;
+    const observer = new ResizeObserver(() => setSize({ width: stage.clientWidth, height: stage.clientHeight }));
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, []);
 
-    // Branches
-    ['rightBranch1' ,scrollPercentage > 25],
-    ['leftBranch1'  ,scrollPercentage > 37],
-    ['rightBranch2' ,scrollPercentage > 45],
+  // ---- Geometry ----
+  const mainX     = size.width / 2;
+  const graphEnd  = Math.max(graphTop + 200, size.height - releaseSpace);
+  const mainEnd   = graphEnd + 40;                                                  // Where main meets the Release badge
+  const yAt       = (at: number) => graphTop + at * (graphEnd - graphTop);           // Fraction -> px
+  const lane      = Math.min(150, Math.max(64, size.width * 0.12));                  // Distance from main to a feature lane
+  const laneX     = (side: 'left' | 'right') => mainX + (side === 'right' ? lane : -lane);
 
+  // The head: how far down the graph is revealed (everything reveals in sync with it)
+  const headY = useTransform(scrollYProgress, (p) => Math.min(1, p / drawEnd) * mainEnd);
 
-    // Tickets
-    ['floatingTicket1'    ,scrollPercentage > 20],
-    ['floatingTicket2'    ,scrollPercentage > 30],
-    ['rightBranch1Ticket' ,scrollPercentage > 40],
-    ['leftBranch1Ticket'  ,scrollPercentage > 58],
-    ['rightBranch2Ticket' ,scrollPercentage > 60],
+  // Re-render only when the head passes a graph event (not on every scroll frame)
+  const fractionOf = (y: number) => (y - graphTop) / (graphEnd - graphTop);
+  const [reached, setReached] = useState(-1);
+  const updateReached = (y: number) => {
+    const fraction = Math.round(fractionOf(y) * 100) / 100;   // 1% steps
+    setReached((prev) => (prev === fraction ?(prev) :(fraction)));
+  };
+  useMotionValueEvent(headY, 'change', updateReached);
+  useEffect(() => { if (size.height) updateReached(headY.get()); }, [size.height]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Dashboard Release
-    ['dashboardRelease'   ,scrollPercentage > 95],
-  ])
+  const isReached     = (at: number) => reached >= at;
+  const releaseShown  = reached >= fractionOf(mainEnd) - 0.005;
 
-  // Components Animation Sequence
-  const animationSequence: AnimationSequence[] = [
-    // Branches
-    { 'id': 'right-branch-1',
-      'animStartOn': 'rightBranch1',
+  // Confetti each time the Release card springs in
+  const [confettiBurst, setConfettiBurst] = useState(0);
+  useEffect(() => { if (releaseShown) setConfettiBurst((burst) => burst + 1); }, [releaseShown]);
 
-      'initial': { opacity: 0 },
-      'animations': [
-        {
-          animate: { opacity: 1 },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'center-branch-1',
-      'animStartOn': 'enter',
-
-      'initial': { opacity: 0 },
-      'animations': [
-        {
-          animate: { opacity: 1 },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'left-branch-1',
-      'animStartOn': 'leftBranch1',
-
-      'initial': { opacity: 0 },
-      'animations': [
-        {
-          animate: { opacity: 1 },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'right-branch-2',
-      'animStartOn': 'rightBranch2',
-
-      'initial': { opacity: 0 },
-      'animations': [
-        {
-          animate: { opacity: 1 },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    
-    
-    // Tickets
-    { 'id': 'floating-ticket-1',
-      'animStartOn': 'floatingTicket1',
-
-      'initial': { opacity: 0, display: 'none' },
-      'animations': [
-        {
-          animate: { opacity: 1, display: 'block' },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'floating-ticket-2',
-      'animStartOn': 'floatingTicket2',
-
-      'initial': { opacity: 0, display: 'none' },
-      'animations': [
-        {
-          animate: { opacity: 1, display: 'block' },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'right-branch-1-ticket',
-      'animStartOn': 'rightBranch1Ticket',
-
-      'initial': { opacity: 0, display: 'none' },
-      'animations': [
-        {
-          animate: { opacity: 1, display: 'block' },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'left-branch-1-ticket',
-      'animStartOn': 'leftBranch1Ticket',
-
-      'initial': { opacity: 0, display: 'none' },
-      'animations': [
-        {
-          animate: { opacity: 1, display: 'block' },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-    { 'id': 'right-branch-2-ticket',
-      'animStartOn': 'rightBranch2Ticket',
-
-      'initial': { opacity: 0, display: 'none' },
-      'animations': [
-        {
-          animate: { opacity: 1, display: 'block' },
-          transition: { duration: 0.65, ease: 'easeInOut', delay: 0, },
-        },
-      ],
-    },
-
-    // Dashboard Release
-    { 'id': 'dashboard-release',
-      'animStartOn': 'dashboardRelease',
-
-      'initial': { opacity: 0, top: '-125px', transform:'scale(0.75)' },
-      'animations': [
-        {
-          animate: { opacity: 1, display: 'block', top: '-25px', transform: 'scale(1)' },
-          transition: { duration: 0.75, ease: 'backInOut', delay: 0, },
-        },
-      ],
-    },
-  ];
-
-  // Animation Sequence Hook
-  useAnimationSequence(scope, animate, animationSequence, startAnimOn);
-
-  /* Note for future self
-    First array is % of scrollYProgress
-    Second array is value const will be set to based on first array
-
-    Paths value (second array) is based on percentage 0-100%
-    Circle(X/Y) value (second array) is based on PX of svg
-  */
-  // Left Branch 1
-  const leftBranch1_Path      = useTransform(scrollYProgress, [0.25, 0.95]        ,[0, 1]);
-  const leftBranch1_CircleX   = useTransform(scrollYProgress, [0.25, 0.40, 0.42]  ,[66, 0, 2]);
-  const leftBranch1_CircleY   = useTransform(scrollYProgress, [0.25, 0.40, 0.6]   ,[14, 130, 320]);
-
-  // Center Branch 1
-  const centerBranch1_Path    = useTransform(scrollYProgress, [0, 1]              ,[0, 1]);
-  const centerBranch1_CircleY = useTransform(scrollYProgress, [0, 1]              ,[0, 877]);
-
-  // Right Branch 1
-  const rightBranch1_Path     = useTransform(scrollYProgress, [0.15, 0.40]        ,[0, 1]);
-  const rightBranch1_CircleX  = useTransform(scrollYProgress, [0.15, 0.25, 1.00]  ,[12, 76, 76]);
-  const rightBranch1_CircleY  = useTransform(scrollYProgress, [0.15, 0.25, 0.29]  ,[14, 84, 136]);
-
-
-  // Right Branch 2
-  const rightBranch2_Path     = useTransform(scrollYProgress, [0.32, 0.85]        ,[0, 1]);
-  const rightBranch2_CircleX  = useTransform(scrollYProgress, [0.32, 0.46, 1.00]  ,[76, 140, 140]);
-  const rightBranch2_CircleY  = useTransform(scrollYProgress, [0.32, 0.46, 0.55]  ,[0, 125, 230]);
-
-  
   return(<>
-    <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 10vh, 125px)', paddingBottom: 'calc(2.5vh + 1rem)' }}>
-      <Box ref={scope} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '4000px', height: '300vh', gap: 'clamp(45px, 8vh, 125px)'}}>
-        {/* Section Title */}
-        {(showTitle) && <VersionControlTitle />}
+    {(showTitle) && (
+      <Box sx={{ display: 'flex', justifyContent: 'center', paddingBottom: 'clamp(45px, 8vh, 125px)' }}>
+        <VersionControlTitle />
+      </Box>
+    )}
 
-        {/* Branch & Ticket Structure */}
-        <Box sx={{ position:'relative', display:'flex', height: '100%', transform:'translateX(14%)' }}>
+    <Box ref={containerRef} sx={{ position: 'relative', height: `${scrollLength * 100}vh` }}>
+      <Box ref={stageRef} sx={{ position: 'sticky', top: 0, height: '100dvh', overflowX: 'clip', overflowY: 'visible' }}>{/* Clip sideways only, so the head isn't cut off at the top edge */}
 
-          {/* Left Side Branches */}
-          <Box sx={{ position: 'sticky', top: '10vh', display: 'grid', height: 'min-content', transform:'translateX(15px)'}}>
-            {/* Floating Tickets */}
-            <Box
-              sx={{
-                position: 'absolute',
-                display:'grid',
-                gap:'clamp(10px, 1.5vh, 24px)',
-                width: 'max-content',
-                left: 'clamp(18px, 1.5vw, 75px)',
-                top: '50px',
-                transform: 'translate(calc(-100% - 3.5vw), -50%)',
-              }}
-            >
-              {/* Floating Ticket 1 */}
-              <motion.div
-                id          = 'floating-ticket-1'
-                initial     = {{ opacity: 0, display: 'none' }}
-                transition  = {{ duration: 0.75, ease: 'backInOut' }}
-              >
-                <TicketContainer
-                  ticketNum = {1}
-                  status    = {'completed'}
-                  text      = {'Drag & Drop Package'}
+        {/* Where the cube's branch connector lands (ProcessCube measures this element) */}
+        <div id='center-branch-1' style={{ position: 'absolute', left: mainX - 3, top: 0, width: 6, height: 1 }} />
+
+        {(size.width > 0) && (<>
+          <svg width={size.width} height={size.height} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
+            <defs>
+              {/* Everything above the head is revealed; one clip keeps every line perfectly in sync */}
+              <clipPath id={clipId}>
+                <motion.rect x={0} y={0} width={size.width} height={headY} />
+              </clipPath>
+            </defs>
+
+            <g clipPath={`url(#${clipId})`}>
+              {/* Feature branches (behind main) */}
+              {featureBranches.map((branch) => (
+                <path
+                  key             = {branch.name}
+                  d               = {branchPath(mainX, laneX(branch.side), yAt(branch.forkAt), yAt(branch.mergeAt))}
+                  stroke          = {branch.color}
+                  strokeWidth     = {4}
+                  strokeLinecap   = 'round'
+                  fill            = 'none'
                 />
-              </motion.div>
+              ))}
 
-              {/* Floating Ticket 2 */}
-              <motion.div
-                id          = 'floating-ticket-2'
-                initial     = {{ opacity: 0, display: 'none' }}
-                transition  = {{ duration: 0.75, ease: 'backInOut' }}
-              >
-                <TicketContainer
-                  ticketNum = {'2'}
-                  status    = {'completed'}
-                  text      = {'Charting Package'}
-                />
-              </motion.div>
-            </Box>
+              {/* Main */}
+              <line x1={mainX} y1={0} x2={mainX} y2={mainEnd} stroke='black' strokeWidth={5} strokeLinecap='round' />
+            </g>
 
+            {/* Commits on feature branches */}
+            {featureBranches.flatMap((branch) => branch.commits.map((at) => (
+              <CommitDot key={`${branch.name}-${at}`} x={laneX(branch.side)} y={yAt(at)} color={branch.color} shown={isReached(at)} />
+            )))}
 
-            {/* Left Branch 1 Ticket */}
-            <motion.div
-              id          = 'left-branch-1-ticket'
-              initial     = {{ opacity: 0, display: 'none' }}
-              transition  = {{ duration: 0.75, ease: 'backInOut' }}
-              style={{
-                position: 'absolute',
-                width: 'max-content',
-                left: leftBranch1_CircleX,
-                top: leftBranch1_CircleY,
-                transform:'translate(calc(-100% - 3.5vw), -50%)',
-                display:'none'
-              }}
-            >
-              <TicketContainer
-                ticketNum = {'4'}
-                status    = {'completed'}
-                text      = {'Build Drag & Drop Layout'}
-              />
-            </motion.div>
+            {/* Commits on main: the package commits & each merge */}
+            {mainCommits.map((commit) => (
+              <CommitDot key={`main-${commit.at}`} x={mainX} y={yAt(commit.at)} color='black' shown={isReached(commit.at)} />
+            ))}
+            {featureBranches.map((branch) => (
+              <CommitDot key={`merge-${branch.name}`} x={mainX} y={yAt(branch.mergeAt)} color={branch.color} shown={isReached(branch.mergeAt)} merge />
+            ))}
 
-            {/* Left Branch 1 */}
-            <motion.svg 
-              id='left-branch-1'
-              width="77" height="633" viewBox="0 0 77 633" fill="none" xmlns="http://www.w3.org/2000/svg"
-              style={{ overflow: 'initial' }}
-              initial={{ opacity:0 }}
-            >
-              {/* Left Branch Path */}
-              <motion.path
-                d="M75 2.47437L5.01064 115.153C3.04282 118.321 2.00002 121.976 2.00002 125.706L2.00001 530.513C2.00001 534.969 3.48827 539.298 6.22862 542.812L74.9999 631"
-                stroke="#00304B"
-                strokeWidth="4" 
-                strokeLinecap="round"
-                style={{ pathLength: leftBranch1_Path }}
-              />
+            {/* Head */}
+            <motion.circle cx={mainX} cy={headY} r={10.5} stroke='black' strokeWidth={7} fill='#F9F7F4' />
+          </svg>
 
-              {/* Left Branch Circle */}
-              <motion.circle
-                cx={leftBranch1_CircleX}
-                cy={leftBranch1_CircleY}
-                r="10"
-                fill="#F9F7F4"
-                stroke="#00304B"
-                strokeWidth="5"
-              />
-            </motion.svg>
+          {/* Branch names (skipped on narrow screens, where they'd run off the edge / into the tickets) */}
+          {(size.width >= 640) && featureBranches.map((branch) => (
+            <Tag stageWidth={size.width} key={`name-${branch.name}`} x={laneX(branch.side)} y={yAt(branch.forkAt) + 46} side={branch.side} shown={isReached(branch.forkAt + 0.03)}>
+              <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: '13px', fontWeight: 700, color: branch.color, whiteSpace: 'nowrap' }}>
+                {branch.name}
+              </span>
+            </Tag>
+          ))}
 
-            {/* Gross */}
-            <span style={{height:'70px'}}/>
-          </Box>
-          
+          {/* Tickets: package tickets beside main, feature tickets beside their branch */}
+          {mainCommits.map((commit) => (
+            <Tag stageWidth={size.width} key={`ticket-${commit.ticket.num}`} x={mainX} y={yAt(commit.at)} side={commit.side} shown={isReached(commit.at)}>
+              <TicketContainer ticketNum={commit.ticket.num} text={commit.ticket.text} status='completed' size='sm' />
+            </Tag>
+          ))}
+          {featureBranches.map((branch) => {
+            const midY    = yAt(branch.forkAt + (branch.mergeAt - branch.forkAt) * 0.42);
+            const status  : TicketTypes = isReached(branch.mergeAt) ?('completed') :('working on it');
+            return (
+              <Tag stageWidth={size.width} key={`ticket-${branch.ticket.num}`} x={laneX(branch.side)} y={midY} side={branch.side} shown={isReached(branch.forkAt + 0.06)}>
+                <TicketContainer ticketNum={branch.ticket.num} text={branch.ticket.text} status={status} size='sm' />
+              </Tag>
+            );
+          })}
 
-          {/* Main Branch */}
-          <Box sx={{ position: 'sticky', top: '0vh', display: 'grid', flexDirection: 'column', height: 'min-content', alignItems:'center', zIndex:1 }}>
-            <motion.svg 
-              id='center-branch-1'
-              width="30" height="877" viewBox="0 0 6 877" fill="none" xmlns="http://www.w3.org/2000/svg"
-              style={{ zIndex: '1', overflow: 'initial' }}
-              initial={{ opacity: 0 }}
-            >
-              <motion.path
-                d="M3 3L2.99996 874" 
-                stroke="black" 
-                strokeWidth="5" 
-                strokeLinecap="round" 
-                style={{ pathLength: centerBranch1_Path }}
-              />
-              <motion.circle
-                cx="3"
-                cy={centerBranch1_CircleY}
-                r="10.5"
-                stroke="black"
-                strokeWidth="7"
-                fill="#F9F7F4" 
-              />
-            </motion.svg>
+          {/* Release confetti (bursts from the card's center) */}
+          <Confetti burst={confettiBurst} x={mainX} y={mainEnd + 70} />
 
-
-            {/* Branch Circle */}
-            <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-            </svg>
-          </Box>
-
-
-          {/* Right Side Branches */}
-          <Box sx={{ position: 'sticky', top: '8vh', display: 'grid', height:'min-content', transform:'translateX(-15px)' }}>
-
-            {/* Right Branch 1 */}
-            <motion.svg
-              id='right-branch-1'
-              width="77" height="256" viewBox="0 0 77 256" fill="none" xmlns="http://www.w3.org/2000/svg"
-              style={{ zIndex: '1', overflow: 'initial' }}
-              initial={{ opacity:0 }}
-            >
-              {/* Right Branch Path */}
-              <motion.path 
-                d="M2.00024 1.88501L69.6349 74.4956C73.0831 78.1974 75.0003 83.0684 75.0003 88.1274L75.0003 172.422C75.0003 177.726 72.8931 182.813 69.1424 186.564L2.00001 253.706"
-                stroke="#BF912E" 
-                fill="transparent"
-                strokeWidth="4" 
-                strokeLinecap="round"
-                style={{ pathLength: rightBranch1_Path }}
-              />
-
-              {/* Right Branch Circle */}
-              <motion.circle 
-                cx={rightBranch1_CircleX}
-                cy={rightBranch1_CircleY} 
-                r="10" 
-                fill="#F9F7F4" 
-                stroke="#BF912E" 
-                strokeWidth="5" 
-              />
-            </motion.svg>
-            
-            {/* Right Branch 1 Ticket */}
-            <motion.div
-              id          = 'right-branch-1-ticket'
-              initial     = {{ opacity: 0, display: 'none' }}
-              transition  = {{ duration: 0.75, ease: 'backInOut' }}
-              style={{
-                position: 'absolute',
-                width: 'max-content',
-                left: rightBranch1_CircleX,
-                top: rightBranch1_CircleY,
-                transform: (!isMobile)
-                  ? 'translate(calc(0% + 3.5vw), -50%)'
-                  : 'translate(-50%, calc(-135% - 1.5vh))',
-                zIndex:1
-              }}
-            >
-              <TicketContainer
-                ticketNum = {'3'}
-                status    = {'completed'}
-                text      = {'Fetch Data From Source'}
-              />
-            </motion.div>
-
-
-
-            {/* Right Branch 2 */}
-            <Box sx={{ position: 'relative', top: '-120px' }}>
-            <motion.svg
-              id='right-branch-2'
-              width="142" height="457" viewBox="0 0 142 457" fill="none" xmlns="http://www.w3.org/2000/svg"
-              style={{  overflow: 'initial' }}
-              initial={{ opacity: 0 }}
-            >
-              {/* Right Branch Path */}
-              <motion.path
-                d="M74.2612 2L137.612 119.733C139.18 122.646 140 125.902 140 129.21L140 334.415C140 340.475 137.253 346.208 132.529 350.004L2.00002 454.909"
-                stroke="#525415"
-                strokeWidth="4"
-                strokeLinecap="round"
-                style={{ pathLength: rightBranch2_Path }}
-              />
-
-              {/* Right Branch Circle */}
-              <motion.circle
-                cx={rightBranch2_CircleX}
-                cy={rightBranch2_CircleY}
-                r="10"
-                fill="#F9F7F4"
-                stroke="#525415"
-                strokeWidth="5"
-              />
-            </motion.svg>
-
-            {/* Right Branch 2 Ticket */}
-            <motion.div
-              id          = 'right-branch-2-ticket'
-              initial     = {{ opacity: 0, display: 'none' }}
-              transition  = {{ duration: 0.75, ease: 'backInOut' }}
-              style={{
-                position: 'absolute',
-                width: 'max-content',
-                left: rightBranch2_CircleX,
-                top: rightBranch2_CircleY,
-                transform: (!isMobile) 
-                  ? 'translate(calc(0% + 3.5vw), -50%)'
-                  : 'translate(calc(-100% - 3.5vw), -50%)'
-              }}
-            >
-              <TicketContainer
-                ticketNum = {'5'}
-                status    = {'completed'}
-                text      = {'Implement Charts in Layout'}
-              />
-            </motion.div>
-            </Box>
-          </Box>
-
-        </Box>
-
-
-
-        {/* Temp component until dashboard is created */}
-        <motion.div
-          id='dashboard-release'
-          initial={{ opacity: 0, top: '-125px', transform: 'scale(0.75)' }}
-          style={{ position:'relative' }}
-        >
-          <div className='shadow'
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: '#242424',
-              borderRadius: '12px',
-              // height: '40px',
-              // padding: '0 2.5rem',
-              padding: '0.5rem 4.5rem',
-              width: 'min-content'
-            }}
+          {/* Release */}
+          <motion.div
+            initial     = {false}
+            animate     = {releaseShown ?({ opacity: 1, y: 0, scale: 1 }) :({ opacity: 0, y: -40, scale: 0.75 })}
+            transition  = {{ duration: 0.6, ease: 'backInOut', type: 'spring', bounce: 0.3 }}
+            style       = {{ position: 'absolute', left: mainX, top: mainEnd + 6, x: '-50%' }}
           >
-          <h4
-            style={{
-              margin: 0,
-              padding: 0,
-              color: 'white',
-              fontWeight: 'normal',
-              whiteSpace: 'nowrap',
-              // fontSize: '25px',
-              fontSize: '45px'
-            }}
-          >
-            Release
-          </h4>
-          </div>
-        </motion.div>
+            {/* Styled like the site's cards: cream, ink border, paper backdrop. Reads like a git release tag */}
+            <Box className='paper paper-plum' style={{ width: 'max-content', marginTop: '20px' }}>
+              <Box sx={{ display: 'grid', justifyItems: 'center', gap: '6px', backgroundColor: 'var(--color-cream)', border: `4px solid ${ink}`, borderRadius: '12px', padding: '12px clamp(20px, 4vw, 36px) 14px' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h2 style={{ margin: 0, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1, whiteSpace: 'nowrap', fontSize: 'clamp(30px, 5vw, 42px)', color: ink }}>
+                    Release
+                  </h2>
 
+                  {/* Version tag */}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px 4px 8px', borderRadius: '20px', backgroundColor: 'var(--color-navy)', color: 'white', fontSize: '14px', fontWeight: 700, letterSpacing: '1px', whiteSpace: 'nowrap' }}>
+                    <LocalOfferRoundedIcon sx={{ fontSize: '15px' }} />
+                    v1.0.0
+                  </span>
+                </Box>
+
+                <p style={{ fontSize: '14px', letterSpacing: '1px', whiteSpace: 'nowrap', color: ink }}>
+                  Shipped to production 🎉
+                </p>
+              </Box>
+            </Box>
+          </motion.div>
+        </>)}
       </Box>
     </Box>
   </>)
 };
 
-export default DevelopmentVersionControl;
 
+// Fork off main with a smooth curve, run down the lane, curve back into main
+const branchPath = (mainX: number, laneX: number, forkY: number, mergeY: number) => {
+  const bend = Math.min(70, (mergeY - forkY) * 0.3);
+  return [
+    `M ${mainX} ${forkY}`,
+    `C ${mainX} ${forkY + bend * 0.6}, ${laneX} ${forkY + bend * 0.4}, ${laneX} ${forkY + bend}`,
+    `L ${laneX} ${mergeY - bend}`,
+    `C ${laneX} ${mergeY - bend * 0.4}, ${mainX} ${mergeY - bend * 0.6}, ${mainX} ${mergeY}`,
+  ].join(' ');
+};
+
+interface CommitDotProps{
+  x       : number;
+  y       : number;
+  color   : string;
+  shown   : boolean;
+  merge   ?: boolean;  // Merge commits on main are a little bigger
+}
+
+const CommitDot = ({ x, y, color, shown, merge }: CommitDotProps) => (
+  <motion.circle
+    cx={x} cy={y} r={merge ?(9) :(7)}
+    fill='#F9F7F4' stroke={color} strokeWidth={merge ?(5) :(4)}
+    initial     = {false}
+    animate     = {{ scale: shown ?(1) :(0) }}
+    transition  = {{ type: 'spring', bounce: 0.5, duration: 0.45 }}
+    style       = {{ transformBox: 'fill-box', originX: 0.5, originY: 0.5 }}
+  />
+);
+
+interface TagProps{
+  stageWidth: number;
+  x         : number;
+  y         : number;
+  side      : 'left' | 'right';  // Which side of the point it sits on
+  shown     : boolean;
+  children  : ReactNode;
+}
+
+// HTML label pinned beside a point on the graph, sliding in from the graph's side
+const Tag = ({ stageWidth, x, y, side, shown, children }: TagProps) => (
+  <div
+    style={{
+      position: 'absolute', left: x, top: y,
+      maxWidth: Math.max(60, (side === 'right') ?(stageWidth - x - 34) :(x - 34)), // Room on its side (text wraps instead of running off screen)
+      transform: (side === 'right') ?('translate(22px, -50%)') :('translate(calc(-100% - 22px), -50%)')
+    }}
+  >
+    <motion.div
+      initial     = {false}
+      animate     = {shown ?({ opacity: 1, x: 0 }) :({ opacity: 0, x: (side === 'right') ?(-16) :(16) })}
+      transition  = {{ duration: 0.45, ease: 'easeOut' }}
+      style       = {{ pointerEvents: shown ?('auto') :('none') }}
+    >
+      {children}
+    </motion.div>
+  </div>
+);
+
+export default DevelopmentVersionControl;

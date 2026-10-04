@@ -60,7 +60,7 @@ const processSteps: ProcessStep[] = [
     width: wideCardWidth,
     content: (active) => <AgileTimelineStep active={active} />,
   },
-  { title: 'Feature Shipping',
+  { title: 'Ship Feature',
     caption: 'The finished Feature ships: a working dashboard built on real data. Try filtering it!',
     duration: 9,
     width: wideCardWidth,

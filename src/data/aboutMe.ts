@@ -15,7 +15,7 @@ export const aboutMe = {
   summary : 'I\'m a full stack developer with 6+ years of experience building and shipping scalable cloud applications across AWS and Azure. ' +
             'With a passion for creativity and problem-solving, I constantly seek out new challenges and opportunities to grow. ' +
             'Today I deliver end-to-end features on a regulated commercial insurance platform as part of a 10+ developer team. ' +
-            'Before that, I helped build and led a programming & automation team from the ground up, helping scale a startup from 7 to 24 employees.',
+            'Before that, I helped build and led a programming & automation team from the ground up, helping scale the startup from 7 to 24 employees.',
 
   // From the resume
   stats   : [
@@ -29,6 +29,6 @@ export const aboutMe = {
     { name: 'Card games',         detail: 'Star Wars Unlimited & Magic: The Gathering (a few of my projects started here)' },
     { name: 'Re-creating art',    detail: 'Rebuilding designs & illustrations in pure HTML/CSS' },
     { name: 'Coffee',             detail: 'I\'m a big fan of exploring different coffee blends and brewing methods. The AeroPress is my daily driver!' },
-    { name: 'Music',              detail: 'Enjoying a wide range of genres and discovering new artists. I collect records, and love 80s and indie pop/rock in particular' },
+    { name: 'Music',              detail: 'Enjoying a wide range of genres and discovering new artists. I collect records and love 80s and indie pop/rock in particular' },
   ] as AboutMeHobby[],
 };

@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react';
 import { motion, Variants } from 'motion/react';
 
 interface Props{
@@ -29,12 +30,6 @@ const sketch: Variants = {
     opacity     : 0,
     transition  : { pathLength: { delay, duration: 0.6, ease: 'easeInOut' }, opacity: { delay: delay + 0.75, duration: 0.4 } },
   }),
-};
-
-// Traced like the pencil pass, but stays (used for the solid pie dividers)
-const trace: Variants = {
-  hidden  : { pathLength: 0, opacity: 0, transition: { duration: 0 } }, // Hidden too, or the round line caps show as a dot
-  shown   : (delay: number) => ({ pathLength: 1, opacity: 1, transition: { delay, duration: 0.35, ease: 'easeOut', opacity: { delay, duration: 0.01 } } }),
 };
 
 const settle: Variants = {
@@ -105,13 +100,20 @@ const WireframeStep = ({ active }: Props) => {
       {pieSlices.map((angle, i) => {
         const radians = (angle * Math.PI) / 180;
         return (
-          <motion.line
-            key       = {angle}
-            x1={145} y1={380} x2={145 + 112 * Math.cos(radians)} y2={380 + 112 * Math.sin(radians)}
-            stroke={colors.pie} strokeWidth={4} strokeLinecap='round'
-            variants  = {trace}
-            custom    = {1.7 + i * 0.12}
-          />
+          <Fragment key={angle}>
+            <motion.line
+              x1={145} y1={380} x2={145 + 112 * Math.cos(radians)} y2={380 + 112 * Math.sin(radians)}
+              stroke={colors.pie} strokeWidth={2}
+              variants  = {sketch}
+              custom    = {1.7 + i * 0.12}
+            />
+            <motion.line
+              x1={145} y1={380} x2={145 + 112 * Math.cos(radians)} y2={380 + 112 * Math.sin(radians)}
+              stroke={colors.pie} {...dotted}
+              variants  = {settle}
+              custom    = {1.7 + i * 0.12}
+            />
+          </Fragment>
         );
       })}
 

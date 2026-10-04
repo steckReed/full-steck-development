@@ -24,7 +24,8 @@ const NavBar = () => {
       alignContent: 'center', 
       justifyContent: 'end', 
       gap: '2vw', 
-      backgroundColor: '#F9F7F4',
+      backgroundColor: 'var(--navbar-bg, #F9F7F4)', // ProcessCube tints this to match its pixel-curtain background
+      transition: 'background-color 0.15s linear',
       zIndex: 999, 
       }}
     >

@@ -1,7 +1,20 @@
 import useIsMobile from '@/functions/useIsMobile';
 import { Box } from '@mui/material';
-import { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'motion/react';
+import { useEffect, useRef, useState } from 'react';
+import { motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
+import PixelCurtain from '@/components/elements/PixelCurtain/PixelCurtain';
+import useNavbarTint from '@/hooks/useNavbarTint';
+
+// Pixel-curtain background (same effect as the ProcessCube, in its own color)
+const curtainColor      = '#CFCEB7'; // --color-mustard (canvas needs a real color value)
+const curtainCoverFrom  = 'bottom' as 'top' | 'bottom';
+const curtainClearLength = 0.75;  // Screen heights of scrolling the curtain takes to clear at the end of the section
+const curtainStartOnCard = 0.35; // Where the curtain's top edge sits on the Dashboard Playground card above (0 = its top, 1 = its bottom)
+
+// Mug body colors as you scroll through the section (mustard left out so the mug never blends into the curtain)
+const mugColors = ['#F9F7F4', 
+  // '#7D4156', '#00304B', '#A5501A', '#525415', '#4C4066'
+];
 
 const AboutMe = () => {
   const isMobile              = useIsMobile();
@@ -11,15 +24,63 @@ const AboutMe = () => {
   // Mapping the scroll progress to a rotation value
   const rotate = useTransform(scrollYProgress, [0, 1], [-35, 35]);
 
+  // Curtain layer starts higher than this section: at the middle of the section above's card (the Dashboard Playground),
+  // so the pixels begin filling in behind its lower half. Measured, so it lines up at any screen size.
+  const curtainRef = useRef<HTMLDivElement>(null);
+  const [curtainLift, setCurtainLift] = useState(0);
+  useEffect(() => {
+    const section = scope.current;
+    const above   = section?.previousElementSibling as HTMLElement | null;
+    if (!section || !above) return;
+
+    const measure = () => {
+      const card = (above.lastElementChild as HTMLElement | null) ?? above;
+      const cardRect = card.getBoundingClientRect();
+      setCurtainLift(Math.max(0, section.getBoundingClientRect().top - (cardRect.top + cardRect.height * curtainStartOnCard)));
+    };
+    const observer = new ResizeObserver(measure); // Also re-measures when the dashboard's data loads & it changes size
+    observer.observe(above);
+    observer.observe(section);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+
+  // Curtain: covers as its layer scrolls in, clears over the second half of this section's pinned stretch
+  const { scrollYProgress: entryProgress } = useScroll({ target: curtainRef, offset: ['start end', 'start start'] });
+  // Clear: over the section's last ~0.6 screens of pinned scrolling (fixed length, so the section's height only changes how long it holds solid)
+  const { scrollYProgress: exitProgress }  = useScroll({ target: scope, offset: [[1, 1 + curtainClearLength], [1, 1]] });
+  const curtainCover = useTransform(entryProgress, [0.05, 0.95], [0, 1]); // Starts as soon as the line enters the screen, full just as it reaches the top
+  const curtainClear = exitProgress;
+  useNavbarTint({ targetRef: curtainRef, cover: curtainCover, clear: curtainClear, color: curtainColor, coverFrom: curtainCoverFrom });
+
+  // Mug color steps through mugColors with scroll (the change itself fades via a CSS transition)
+  const [mugColorIndex, setMugColorIndex] = useState(0);
+  useMotionValueEvent(scrollYProgress, 'change', (value) => {
+    const index = Math.min(mugColors.length - 1, Math.max(0, Math.floor(((value - 0.2) / 0.6) * mugColors.length)));
+    setMugColorIndex((prev) => (prev === index) ?(prev) :(index));
+  });
+
 
   return(<>
-    <Box ref={scope} sx={{ display: 'flex', alignItems: 'center', minHeight: '1500px', gap: 'clamp(45px, 10vh, 125px)'}}>
+    {/* Tall enough to give the curtain, mug colors & text rotation room to play out (pinned for ~2 screens of scrolling) */}
+    {/* Mug aligned to the top (not centered) so it arrives with the section & stays pinned at screen center for all of it */}
+    <Box ref={scope} sx={{ position: 'relative', display: 'flex', alignItems: 'flex-start', minHeight: 'max(2000px, 150vh)', gap: 'clamp(45px, 10vh, 125px)'}}>
+
+      {/* Pixel curtain background: a full-screen layer that sticks while the section scrolls.
+          Starts curtainLift px above this section, reaching up behind the Dashboard Playground (which sits above it with z-index 1) */}
+      <Box ref={curtainRef} aria-hidden='true' sx={{ position: 'absolute', top: -curtainLift, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+        <Box sx={{ position: 'sticky', top: 0, height: '100dvh' }}>
+          <PixelCurtain cover={curtainCover} clear={curtainClear} color={curtainColor} coverFrom={curtainCoverFrom} />
+        </Box>
+      </Box>
 
       {/* Coffee Mug W/ Splashes Container */}
       {/* Entrances animate transforms (x / y / rotate / scale) back to 0 from an offset, with each piece's final left/bottom
           kept as a static style. Transforms run on the GPU; animating left/bottom (the old way) re-laid out the page every frame.
           The mug container is 318px wide, so left: '10%' is ~32px (an 80px start = x offset of 48px). */}
-      <Box sx={{ display: 'grid', position: 'sticky', top: '50%', transform:'translateY(-50%)', overflow:'hidden'}}>
+      {/* Pinned centered via top (half its 540px height above center) instead of a translateY(-50%), which would also shift it
+          up out of its section before it pins & behind the Dashboard Playground above */}
+      <Box sx={{ display: 'grid', position: 'sticky', top: 'calc(50% - 270px)', overflow:'hidden'}}>
 
         <Box sx={{ display: 'grid', width: '100vw', overflow: 'hidden'}}>
 
@@ -61,7 +122,7 @@ const AboutMe = () => {
 
 
           {/* Coffee Mug Container */}
-          <Box sx={{ gridArea: '2 / 1', position: 'relative', bottom: '0', display: 'grid', margin: '0 auto', transform: `rotate(-45deg) translate(20%, -20%) ${isMobile ?('scale(0.7)') :('')}` }}>
+          <Box sx={{ '& svg [fill="#F9F7F4"]': { fill: mugColors[mugColorIndex], transition: 'fill 0.6s ease' }, gridArea: '2 / 1', position: 'relative', bottom: '0', display: 'grid', margin: '0 auto', transform: `rotate(-45deg) translate(20%, -20%) ${isMobile ?('scale(0.7)') :('')}` }}>
 
             {/* Coffee Mug - Top */}
             <motion.svg 
