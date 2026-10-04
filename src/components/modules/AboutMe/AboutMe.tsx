@@ -64,7 +64,7 @@ const AboutMe = () => {
   return(<>
     {/* Tall enough to give the curtain, mug colors & text rotation room to play out (pinned for ~2 screens of scrolling) */}
     {/* Mug aligned to the top (not centered) so it arrives with the section & stays pinned at screen center for all of it */}
-    <Box ref={scope} sx={{ position: 'relative', display: 'flex', alignItems: 'flex-start', minHeight: 'max(2000px, 150vh)', gap: 'clamp(45px, 10vh, 125px)'}}>
+    <Box ref={scope} data-analytics-section='about_me' sx={{ position: 'relative', display: 'flex', alignItems: 'flex-start', minHeight: 'max(2000px, 150vh)', gap: 'clamp(45px, 10vh, 125px)'}}>
 
       {/* Pixel curtain background: a full-screen layer that sticks while the section scrolls.
           Starts curtainLift px above this section, reaching up behind the Dashboard Playground (which sits above it with z-index 1) */}

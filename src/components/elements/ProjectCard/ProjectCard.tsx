@@ -33,7 +33,7 @@ const ProjectCard = ({
         }}
       >
         {/* Screenshot */}
-        <Link href={project.url} target='_blank' rel='noopener noreferrer' tabIndex={-1}>
+        <Link href={project.url} target='_blank' rel='noopener noreferrer' tabIndex={-1} data-analytics={`${project.name} (screenshot)`}>
           <Box
             sx={{
               position:'relative',

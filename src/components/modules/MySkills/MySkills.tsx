@@ -22,7 +22,7 @@ const chipVariants: Variants = {
 const MySkills = () => {
 
   return (<>
-    <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 8vh, 90px)', paddingBottom: 'calc(4.5vh + 1rem)' }}>
+    <Box data-analytics-section='skills' sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column', margin: '0 auto', gap: 'clamp(45px, 8vh, 90px)', paddingBottom: 'calc(4.5vh + 1rem)' }}>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '35px', width: '100%' }}>
         {/* Title */}

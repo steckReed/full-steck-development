@@ -129,7 +129,7 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
       </Box>
     )}
 
-    <Box ref={containerRef} sx={{ position: 'relative', height: `${scrollLength * 100}vh` }}>
+    <Box ref={containerRef} data-analytics-section='version_control' sx={{ position: 'relative', height: `${scrollLength * 100}vh` }}>
       <Box ref={stageRef} sx={{ position: 'sticky', top: 0, height: '100dvh', overflowX: 'clip', overflowY: 'visible' }}>{/* Clip sideways only, so the head isn't cut off at the top edge */}
 
         {/* Where the cube's branch connector lands (ProcessCube measures this element) */}

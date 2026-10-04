@@ -307,6 +307,7 @@ const IdeasToWebApps = ({
             onMouseLeave = {() => setHoveredCard(null)}
             onClick     = {(i < active) ?(() => goToStep(i)) :(undefined)}
             title       = {(i < active) ?(`Back to ${step.title}`) :(undefined)}
+            data-analytics = {(i < active) ?(`Back to ${step.title}`) :(undefined)}
             style={{
               gridColumn: 1,
               gridRow: 1,

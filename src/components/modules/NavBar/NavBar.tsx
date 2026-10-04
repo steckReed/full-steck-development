@@ -60,7 +60,7 @@ const NavBar = () => {
 
         style={{ position: 'relative', alignSelf: 'center' }}
       >
-        <Link href={'https://github.com/steckReed'} target='_blank'>
+        <Link href={'https://github.com/steckReed'} target='_blank' aria-label='GitHub'>
           <GitHubIcon sx={{ fontSize: '1.75rem', color: '#202328' }} />
         </Link>
       </motion.div>
@@ -74,7 +74,7 @@ const NavBar = () => {
 
         style={{ position: 'relative', alignSelf: 'center' }}
       >
-        <Link href={'https://www.linkedin.com/in/reed-steck-993b48286/'} target='_blank'>
+        <Link href={'https://www.linkedin.com/in/reed-steck-993b48286/'} target='_blank' aria-label='LinkedIn'>
           <LinkedInIcon sx={{ fontSize: '2rem', color:'#0077b5' }} />
         </Link>
       </motion.div>

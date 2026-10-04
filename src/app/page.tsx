@@ -1,6 +1,7 @@
 'use client'
 import { Box } from '@mui/material';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { trackEvent } from '@/lib/analytics';
 import InfiniteScroll from 'react-infinite-scroller';
 import DevelopmentVersionControl from '@/components/modules/DevelopmentVersionControl/DevelopmentVersionControl';
 import ProcessCube from '@/components/modules/ProcessCube/ProcessCube';
@@ -15,6 +16,11 @@ export default function Home() {
   const loadMore = () => {
     setItems(prevItems => [...prevItems, {}]); // Each empty object represents a repetition of the components
   };
+
+  // Track how many times a visitor scrolls through the whole page (2 = started the second pass)
+  useEffect(() => {
+    if (items.length > 1) trackEvent('content_loop', { loop: items.length });
+  }, [items.length]);
 
 
   return (

@@ -266,7 +266,7 @@ const ProcessCube = () => {
   }
 
   return(<>
-    <Box ref={containerRef} sx={{ position: 'relative', height: `${(totalScroll + 1) * 100}vh` }}>
+    <Box ref={containerRef} data-analytics-section='process_cube' sx={{ position: 'relative', height: `${(totalScroll + 1) * 100}vh` }}>
 
       {/* Pinned stage */}
       <Box

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ReactQueryProvider } from './ReactQueryProvider';
 import montserrat from '@/fonts/montserrat';
 import NavBar from '@/components/modules/NavBar/NavBar';
+import AnalyticsTracker from '@/components/elements/AnalyticsTracker/AnalyticsTracker';
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
           <meta httpEquiv="Content-Security-Policy" content="upgrade-insecure-requests" />
         </head>
         <body className={montserrat.className} style={{ minHeight: '100vh' }} >
+          <AnalyticsTracker />
           <NavBar />
 
           {children}

@@ -14,7 +14,7 @@ const DashboardPlayground = () => {
 
   return(<>
     {/* z-index 1: the next section's pixel curtain reaches up behind this one, so keep this content on top of it */}
-    <Box ref={sectionRef} sx={{ position: 'relative', zIndex: 1, display: 'grid', justifyItems: 'center', gap: '40px', marginTop: '4.5vh' }}>
+    <Box ref={sectionRef} data-analytics-section='dashboard_playground' sx={{ position: 'relative', zIndex: 1, display: 'grid', justifyItems: 'center', gap: '40px', marginTop: '4.5vh' }}>
 
       {/* Title */}
       <motion.div
