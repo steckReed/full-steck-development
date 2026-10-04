@@ -93,6 +93,7 @@ const ScaleToFit = ({
           width: layoutWidth || '100%',
           transform: `translateX(-50%) scale(${scale})`,
           transformOrigin: 'top center',
+          transition: 'top 0.45s ease, transform 0.45s ease', // Ease re-centering / re-scaling when the content's height changes
           visibility: (box.width > 0) ?('visible') :('hidden')
         }}
       >

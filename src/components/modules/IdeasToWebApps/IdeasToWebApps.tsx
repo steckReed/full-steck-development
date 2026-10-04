@@ -310,6 +310,9 @@ const IdeasToWebApps = ({
             style={{
               gridColumn: 1,
               gridRow: 1,
+              // Upcoming cards are hidden, so take them out of the layout: the stack is only as tall as the cards showing
+              // (otherwise every step reserves room for the tallest card, the Feature Shipping dashboard)
+              position: (i > (hasStarted ? active : -1)) ?('absolute') :('relative'),
               zIndex: i,
               transformOrigin: 'top center',
               pointerEvents: (i > active) ?('none') :('auto'),
