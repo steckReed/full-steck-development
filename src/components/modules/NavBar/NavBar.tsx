@@ -91,9 +91,9 @@ const NavBar = () => {
           alignSelf: 'center'
         }}
       >
-        <Link href="/files/c-steck-reed-resume.pdf" download="c-steck-reed-resume.pdf" target='_blank' style={{ color:'black', textDecoration:'none' }}>
+        <a href="/files/c-steck-reed-resume.pdf" target='_blank' rel='noopener noreferrer' style={{ color:'black', textDecoration:'none' }}>
           <p>Resume</p>
-        </Link>
+        </a>
       </motion.div>
 
     
