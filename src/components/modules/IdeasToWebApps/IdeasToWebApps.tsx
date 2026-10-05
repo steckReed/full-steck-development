@@ -6,6 +6,7 @@ import { AnimationPlaybackControls, motion, MotionValue, useAnimate, useInView, 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import LegendContainer from '../LegendContainer/LegendContainer';
+import IdeaStep, { ideaTypingDuration } from './IdeaStep/IdeaStep';
 import WireframeStep from './WireframeStep/WireframeStep';
 import AgileTimelineStep from './AgileTimelineStep/AgileTimelineStep';
 import FeatureShippingStep from './FeatureShippingStep/FeatureShippingStep';
@@ -42,12 +43,8 @@ const wideCardWidth = 'min(815px, 100cqw)';
 const processSteps: ProcessStep[] = [
   { title: 'Idea',
     caption: 'Every project/feature starts with a need and desire to fill it: who it\'s for and what problem it solves.',
-    duration: 5,
-    content: () => (
-      <p style={{ textAlign: 'center', fontSize:'clamp(18px, 4.5vw, 24px)', padding:'0 1rem' }}>
-        Develop and implement an interactive dashboard to fetch internal data for analysis
-      </p>
-    ),
+    duration: Math.ceil(ideaTypingDuration) + 2, // Typing time plus a moment to read the finished sentence
+    content: (active) => <IdeaStep active={active} />,
   },
   { title: 'Wireframe',
     caption: 'Wireframe is sketched as proof of concept to ensure needs can be met before implementation.',
@@ -322,7 +319,8 @@ const IdeasToWebApps = ({
             }}
           >
             <LegendContainer title={step.title} width={step.width} hideTitle={i < active}>
-              {step.content(i === active)}
+              {/* Only active once the slides have started, so the first step doesn't animate before the section is reached */}
+              {step.content(hasStarted && i === active)}
             </LegendContainer>
           </motion.div>
         ))}
