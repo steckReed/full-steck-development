@@ -1,9 +1,10 @@
 import useIsMobile from '@/functions/useIsMobile';
 import { Box } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { motion, useInView, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
 import PixelCurtain from '@/components/elements/PixelCurtain/PixelCurtain';
 import useNavbarTint from '@/hooks/useNavbarTint';
+import { trackEvent } from '@/lib/analytics';
 
 // Pixel-curtain background (same effect as the ProcessCube, in its own color)
 const curtainColor      = '#CFCEB7'; // --color-mustard (canvas needs a real color value)
@@ -15,6 +16,27 @@ const curtainStartOnCard = 0.35; // Where the curtain's top edge sits on the Das
 const mugColors = ['#F9F7F4', 
   // '#7D4156', '#00304B', '#A5501A', '#525415', '#4C4066'
 ];
+
+// Mug colors a click on the mug splashes into (the site's global colors, minus stone & ink so it never blends into the curtain or its outline)
+const mugClickColors = [
+  'var(--color-plum)', 
+  'var(--color-grape)', 
+  'var(--color-rust)', 
+  'var(--color-mustard)', 
+  'var(--color-olive)',
+  'var(--color-stone)',
+];
+
+// Swatches under the mug: cream (its original color) & every click color
+const mugSwatches = ['var(--color-cream)', ...mugClickColors];
+const colorName   = (color: string) => color.replace(/var\(--color-|\)/g, ''); // 'var(--color-plum)' -> 'plum'
+
+// Mug stage sizing: the mug & its wrapper text are laid out at mugStageHeight, then scaled down to fit shorter screens
+const mugStageHeight  = 540;  // px: the wrapper text's circle
+const swatchRowHeight = 62;   // px: swatches & their padding
+const navBarHeight    = 48;
+const fitMargin       = 16;   // px kept clear above & below
+const mobileMugScale  = 0.7;
 
 // Mug entrance: the top (rim) & bottom (body) are separate svgs, so they share one in-view trigger & the same values to move as one piece
 const mugEntrance = {
@@ -29,6 +51,37 @@ const AboutMe = () => {
   const { scrollYProgress }   = useScroll({ target: scope, offset: ["start end", "end start"] })
   const mugRef                = useRef<HTMLDivElement>(null);
   const mugInView             = useInView(mugRef);
+
+  // Scale the mug stage to fit the screen's height (never up, & capped on mobile) so the swatches always fit below it
+  const [mugScale, setMugScale] = useState(1);
+  useEffect(() => {
+    const fit = () => {
+      const fitHeight = (window.innerHeight - navBarHeight - swatchRowHeight - fitMargin * 2) / mugStageHeight;
+      setMugScale(Math.max(0.4, Math.min((isMobile) ?(mobileMugScale) :(1), fitHeight)));
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, [isMobile]);
+  const pinnedHeight = mugStageHeight * mugScale + swatchRowHeight; // What's actually pinned: the scaled stage & the swatches
+
+  // Click the mug: replay its entrance (re-mounts the pieces) & come back in the next swatch color
+  const [splashCount, setSplashCount] = useState(0);
+  const [mugClickColor, setMugClickColor] = useState<string | null>(null); // null = the scroll-driven mugColors
+  const splashTo = (color: string, source: 'mug' | 'swatch') => {
+    setMugClickColor(color);
+    setSplashCount((count) => count + 1);
+    trackEvent('mug_splash', { color: colorName(color), source });
+  };
+  const splash = () => {
+    const current = mugSwatches.indexOf(mugClickColor ?? mugSwatches[0]);
+    splashTo(mugSwatches[(current + 1) % mugSwatches.length], 'mug'); // Next swatch in order, wrapping back to cream
+  };
+  const splashOnKey = (event: KeyboardEvent) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    splash();
+  };
 
   // Mapping the scroll progress to a rotation value
   const rotate = useTransform(scrollYProgress, [0, 1], [-35, 35]);
@@ -87,14 +140,16 @@ const AboutMe = () => {
       {/* Entrances animate transforms (x / y / rotate / scale) back to 0 from an offset, with each piece's final left/bottom
           kept as a static style. Transforms run on the GPU; animating left/bottom (the old way) re-laid out the page every frame.
           The mug container is 318px wide, so left: '10%' is ~32px (an 80px start = x offset of 48px). */}
-      {/* Pinned centered via top (half its 540px height above center) instead of a translateY(-50%), which would also shift it
+      {/* Pinned centered below the NavBar via top (half its height above center) instead of a translateY(-50%), which would also shift it
           up out of its section before it pins & behind the Dashboard Playground above */}
-      <Box sx={{ display: 'grid', position: 'sticky', top: 'calc(50% - 270px)', overflow:'hidden'}}>
+      <Box sx={{ display: 'grid', position: 'sticky', top: `calc(50% + ${navBarHeight / 2}px - ${pinnedHeight / 2}px)`, width: '100vw', gridTemplateColumns: 'minmax(0, 1fr)', overflow:'hidden'}}>
 
-        <Box sx={{ display: 'grid', width: '100vw', overflow: 'hidden'}}>
+        {/* Mug stage: scaled from the top, with the space it leaves pulled back up so the swatches sit right under it.
+            Laid out wider by the same factor (& re-centered) so once scaled it still spans the screen & the splashes aren't clipped */}
+        <Box sx={{ display: 'grid', width: `calc(100vw / ${mugScale})`, marginLeft: `calc(50vw - 50vw / ${mugScale})`, overflow: 'hidden', transform: `scale(${mugScale})`, transformOrigin: 'top center', marginBottom: `${-mugStageHeight * (1 - mugScale)}px` }}>
 
           {/* Wrapper Text */}
-          <Box sx={{ gridColumn: 1, gridRow: '1 / 3', height: '540px', transform: (isMobile) ? ('scale(0.70)') : ('none') }}>
+          <Box sx={{ gridColumn: 1, gridRow: '1 / 3', height: `${mugStageHeight}px` }}>
             <motion.div style={{ display: 'grid', height: '100%', rotate: rotate, willChange: 'transform' }} >
 
               {/* Top Text */}
@@ -131,7 +186,21 @@ const AboutMe = () => {
 
 
           {/* Coffee Mug Container */}
-          <Box ref={mugRef} sx={{ '& svg [fill="#F9F7F4"]': { fill: mugColors[mugColorIndex], transition: 'fill 0.6s ease' }, gridArea: '2 / 1', position: 'relative', bottom: '0', display: 'grid', margin: '0 auto', transform: `rotate(-45deg) translate(20%, -20%) ${isMobile ?('scale(0.7)') :('')}` }}>
+          <Box
+            ref         = {mugRef}
+            role        = 'button'
+            tabIndex    = {0}
+            aria-label  = 'Splash the coffee mug'
+            onClick     = {splash}
+            onKeyDown   = {splashOnKey}
+            sx={{
+              '& svg [fill="#F9F7F4"]': { fill: mugClickColor ?? mugColors[mugColorIndex], transition: 'fill 0.6s ease' },
+              cursor: 'pointer', WebkitTapHighlightColor: 'transparent', outline: 'none',
+              '&:focus-visible': { outline: '3px dashed #242424', outlineOffset: '12px', borderRadius: '12px' },
+              gridArea: '2 / 1', position: 'relative', bottom: '0', display: 'grid', margin: '0 auto', transform: 'rotate(-45deg) translate(20%, -20%)' 
+            }}
+          >
+            <Fragment key={splashCount}>{/* Re-mounting replays every piece's entrance */}
 
             {/* Coffee Mug - Top */}
             <motion.svg 
@@ -231,8 +300,38 @@ const AboutMe = () => {
                 </clipPath>
               </defs>
             </motion.svg>
+            </Fragment>
 
           </Box>
+        </Box>
+
+        {/* Mug Color Swatches: pick a color, the mug splashes back in wearing it */}
+        <Box role='group' aria-label='Mug color' sx={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '12px', padding: '16px 16px 8px' }}>
+          {mugSwatches.map((color) => {
+            const selected = (mugClickColor ?? mugSwatches[0]) === color;
+            return (
+              <button
+                key           = {color}
+                type          = 'button'
+                aria-label    = {`${colorName(color)} mug`}
+                aria-pressed  = {selected}
+                title         = {colorName(color)}
+                onClick       = {() => splashTo(color, 'swatch')}
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  padding: 0,
+                  borderRadius: '50%',
+                  border: '3px solid #242424',
+                  backgroundColor: color,
+                  boxShadow: selected ?('3px 3px 0 #242424') :('none'),
+                  transform: selected ?('translate(-2px, -2px)') :('none'),
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s'
+                }}
+              />
+            );
+          })}
         </Box>
 
       </Box>
