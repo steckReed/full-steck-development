@@ -71,10 +71,11 @@ const featureBranches: FeatureBranch[] = [
 ];
 
 const ink           = '#242424';
-const scrollLength  = 3.5;   // Section height in screen heights (pinned for scrollLength - 1 of them)
+const scrollLength  = 3;     // Section height in screen heights (pinned for scrollLength - 1 of them)
 const drawEnd       = 0.9;   // Share of the section's scroll it takes to draw the whole graph (the rest holds on the Release)
 const graphTop      = 72;    // px: where graph events start (below the NavBar). The main line itself starts at 0 to meet the cube.
 const releaseSpace  = 175;   // px kept at the bottom for the Release card
+const penLine       = 0.45;  // Share of the screen height where the head holds while the section scrolls in (it keeps drawing, no blank gap)
 
 const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -84,6 +85,9 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
 
   // 0 to 1 across the pinned section
   const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end end'] });
+
+  // 0 to 1 as the section scrolls in from the bottom of the screen (before it pins)
+  const { scrollYProgress: entryProgress } = useScroll({ target: containerRef, offset: ['start end', 'start start'] });
 
   // Measure the stage so the graph's geometry fits the screen
   useEffect(() => {
@@ -103,7 +107,18 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
   const laneX     = (side: 'left' | 'right') => mainX + (side === 'right' ? lane : -lane);
 
   // The head: how far down the graph is revealed (everything reveals in sync with it)
-  const headY = useTransform(scrollYProgress, (p) => Math.min(1, p / drawEnd) * mainEnd);
+  //  - scrolling in: the head holds at the pen line on screen, drawing the graph as it slides up past it
+  //  - pinned: picks up from the pen line & draws the rest down to the Release
+  const penStart  = Math.min(mainEnd, penLine * size.height);
+  const headY     = useTransform(() => {
+    const pinned  = scrollYProgress.get();
+    const entry   = entryProgress.get();   // Both read every time so each stays subscribed
+
+    if (pinned > 0) return penStart + Math.min(1, pinned / drawEnd) * (mainEnd - penStart);
+    const stageTop = (1 - entry) * size.height;  // Where the stage's top sits on screen
+    return Math.min(penStart, Math.max(0, penStart - stageTop));
+  });
+  const backdropOpacity = useTransform(entryProgress, [0.2, 0.8], [0, 1]);
 
   // Re-render only when the head passes a graph event (not on every scroll frame)
   const fractionOf = (y: number) => (y - graphTop) / (graphEnd - graphTop);
@@ -136,6 +151,21 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
         <div id='center-branch-1' style={{ position: 'absolute', left: mainX - 3, top: 0, width: 6, height: 1 }} />
 
         {(size.width > 0) && (<>
+          {/* Supergraphic backdrop: oversized type bleeding off the left edge (wide screens only) */}
+          {(size.width >= 640) && (
+            <motion.p
+              aria-hidden = 'true'
+              style       = {{
+                position: 'absolute', left: 'clamp(-28px, -1.5vw, -8px)', bottom: releaseSpace - 40,
+                writingMode: 'vertical-rl', rotate: 180,
+                fontSize: 'clamp(90px, 15vh, 170px)', fontWeight: 800, letterSpacing: '-4px', lineHeight: 0.85, whiteSpace: 'nowrap',
+                color: 'var(--color-stone)', opacity: backdropOpacity, pointerEvents: 'none', userSelect: 'none'
+              }}
+            >
+              git log --graph
+            </motion.p>
+          )}
+
           <svg width={size.width} height={size.height} style={{ position: 'absolute', inset: 0, overflow: 'visible' }}>
             <defs>
               {/* Everything above the head is revealed; one clip keeps every line perfectly in sync */}
@@ -143,6 +173,14 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
                 <motion.rect x={0} y={0} width={size.width} height={headY} />
               </clipPath>
             </defs>
+
+            {/* Lane rails: dashed "graph paper" guides for main & each feature lane, there before anything draws */}
+            <motion.g stroke='var(--color-stone)' strokeWidth={3} strokeDasharray='2 12' strokeLinecap='round' style={{ opacity: backdropOpacity }}>
+              <line x1={mainX} y1={0} x2={mainX} y2={mainEnd} />
+              {(['left', 'right'] as const).map((side) => (
+                <line key={`rail-${side}`} x1={laneX(side)} y1={graphTop} x2={laneX(side)} y2={graphEnd} />
+              ))}
+            </motion.g>
 
             <g clipPath={`url(#${clipId})`}>
               {/* Feature branches (behind main) */}
@@ -181,7 +219,7 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
           {/* Branch names (skipped on narrow screens, where they'd run off the edge / into the tickets) */}
           {(size.width >= 640) && featureBranches.map((branch) => (
             <Tag stageWidth={size.width} key={`name-${branch.name}`} x={laneX(branch.side)} y={yAt(branch.forkAt) + 46} side={branch.side} shown={isReached(branch.forkAt + 0.03)}>
-              <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: '13px', fontWeight: 700, color: branch.color, whiteSpace: 'nowrap' }}>
+              <span style={{ display: 'inline-block', padding: '2px 8px', backgroundColor: 'var(--color-cream)', border: `2px solid ${ink}`, borderRadius: '6px', boxShadow: `3px 3px 0 ${branch.color}`, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: '13px', fontWeight: 700, color: branch.color, whiteSpace: 'nowrap' }}>
                 {branch.name}
               </span>
             </Tag>
@@ -198,7 +236,7 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
             const status  : TicketTypes = isReached(branch.mergeAt) ?('completed') :('working on it');
             return (
               <Tag stageWidth={size.width} key={`ticket-${branch.ticket.num}`} x={laneX(branch.side)} y={midY} side={branch.side} shown={isReached(branch.forkAt + 0.06)}>
-                <TicketContainer ticketNum={branch.ticket.num} text={branch.ticket.text} status={status} size='sm' />
+                <TicketContainer ticketNum={branch.ticket.num} text={branch.ticket.text} status={status} size='sm' accent={branch.color} />
               </Tag>
             );
           })}

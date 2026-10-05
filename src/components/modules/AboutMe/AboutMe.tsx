@@ -1,7 +1,7 @@
 import useIsMobile from '@/functions/useIsMobile';
 import { Box } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
-import { motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
+import { motion, useInView, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
 import PixelCurtain from '@/components/elements/PixelCurtain/PixelCurtain';
 import useNavbarTint from '@/hooks/useNavbarTint';
 
@@ -16,10 +16,19 @@ const mugColors = ['#F9F7F4',
   // '#7D4156', '#00304B', '#A5501A', '#525415', '#4C4066'
 ];
 
+// Mug entrance: the top (rim) & bottom (body) are separate svgs, so they share one in-view trigger & the same values to move as one piece
+const mugEntrance = {
+  hidden  : { opacity: 0, x: 48, y: 100 },
+  shown   : { opacity: 1, x: 0, y: 0 },
+};
+const mugTransition = { duration: 1.25, ease: 'backInOut' } as const;
+
 const AboutMe = () => {
   const isMobile              = useIsMobile();
   const scope                 = useRef<HTMLDivElement>(null);
   const { scrollYProgress }   = useScroll({ target: scope, offset: ["start end", "end start"] })
+  const mugRef                = useRef<HTMLDivElement>(null);
+  const mugInView             = useInView(mugRef);
 
   // Mapping the scroll progress to a rotation value
   const rotate = useTransform(scrollYProgress, [0, 1], [-35, 35]);
@@ -122,15 +131,16 @@ const AboutMe = () => {
 
 
           {/* Coffee Mug Container */}
-          <Box sx={{ '& svg [fill="#F9F7F4"]': { fill: mugColors[mugColorIndex], transition: 'fill 0.6s ease' }, gridArea: '2 / 1', position: 'relative', bottom: '0', display: 'grid', margin: '0 auto', transform: `rotate(-45deg) translate(20%, -20%) ${isMobile ?('scale(0.7)') :('')}` }}>
+          <Box ref={mugRef} sx={{ '& svg [fill="#F9F7F4"]': { fill: mugColors[mugColorIndex], transition: 'fill 0.6s ease' }, gridArea: '2 / 1', position: 'relative', bottom: '0', display: 'grid', margin: '0 auto', transform: `rotate(-45deg) translate(20%, -20%) ${isMobile ?('scale(0.7)') :('')}` }}>
 
             {/* Coffee Mug - Top */}
             <motion.svg 
               width="318" height="29" viewBox="0 0 318 29" fill="none" xmlns="http://www.w3.org/2000/svg"
               // Hate the bottom -1px, but cant seem to find a way around the svg issue...
-              whileInView={{ opacity: 1, x: 0, y: 0 }}
-              initial={{ opacity: 0, x: 48, y: 99 }}
-              transition={{ duration: 1.25, ease: 'backInOut' }}
+              variants={mugEntrance}
+              initial='hidden'
+              animate={mugInView ?('shown') :('hidden')}
+              transition={mugTransition}
               style={{ gridColumn:1, gridRow:1, position: 'relative', marginTop:'auto', left: '10%', bottom: '-1px', willChange: 'transform' }}
             >
               <g clipPath="url(#clip0_289_36)">
@@ -194,9 +204,13 @@ const AboutMe = () => {
             {/* Coffee Mug - Bottom */}
             <motion.svg
               width="318" height="214" viewBox="0 0 318 214" fill="none" xmlns="http://www.w3.org/2000/svg"
-              whileInView={{ opacity: 1, x: 0, y: 0, filter: 'drop-shadow(19px 20px 6px rgba(0, 0, 0, .25))' }}
-              initial={{ opacity: 0, x: 48, y: 100, filter: 'drop-shadow(3px 4px 6px rgba(0, 0, 0, .25))' }}
-              transition={{ duration: 1.25, ease: 'backInOut' }}
+              variants={{
+                hidden  : { ...mugEntrance.hidden, filter: 'drop-shadow(3px 4px 6px rgba(0, 0, 0, .25))' },
+                shown   : { ...mugEntrance.shown, filter: 'drop-shadow(19px 20px 6px rgba(0, 0, 0, .25))' },
+              }}
+              initial='hidden'
+              animate={mugInView ?('shown') :('hidden')}
+              transition={mugTransition}
               style={{ gridColumn: 1, gridRow: 2, position: 'relative', left: '10%', bottom: 0, willChange: 'transform' }}
             >
               <g clipPath="url(#clip0_289_35)">
