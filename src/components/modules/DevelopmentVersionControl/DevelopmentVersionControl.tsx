@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Box } from '@mui/material';
 import { motion, useMotionValueEvent, useScroll, useTransform } from 'motion/react';
 import { TicketTypes } from '@/types/types';
@@ -76,6 +76,8 @@ const drawEnd       = 0.9;   // Share of the section's scroll it takes to draw t
 const graphTop      = 72;    // px: where graph events start (below the NavBar). The main line itself starts at 0 to meet the cube.
 const releaseSpace  = 175;   // px kept at the bottom for the Release card
 const penLine       = 0.45;  // Share of the screen height where the head holds while the section scrolls in (it keeps drawing, no blank gap)
+const ticketGap     = 8;     // px: minimum space between stacked tickets on the same side
+const branchNameSpace = 32;  // px: the branch name tag sitting above a feature ticket (tag height + its 6px offset)
 
 const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
   const containerRef  = useRef<HTMLDivElement>(null);
@@ -132,6 +134,64 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
 
   const isReached     = (at: number) => reached >= at;
   const releaseShown  = reached >= fractionOf(mainEnd) - 0.005;
+
+  // ---- Tickets ----
+  const showBranchNames = size.width >= 640; 
+  const tickets: PlacedTicket[] = [
+    ...mainCommits.map((commit) => ({
+      key       : `ticket-${commit.ticket.num}`,
+      side      : commit.side,
+      x         : mainX,
+      anchorY   : yAt(commit.at),
+      topSpace  : 0,
+      shown     : isReached(commit.at),
+      content   : <TicketContainer ticketNum={commit.ticket.num} text={commit.ticket.text} status='completed' size='sm' />,
+    })),
+    ...featureBranches.map((branch) => {
+      const status: TicketTypes = isReached(branch.mergeAt) ?('completed') :('working on it');
+      return {
+        key       : `ticket-${branch.ticket.num}`,
+        side      : branch.side,
+        x         : laneX(branch.side),
+        anchorY   : yAt(branch.forkAt + (branch.mergeAt - branch.forkAt) * 0.42),
+        topSpace  : showBranchNames ?(branchNameSpace) :(0),
+        shown     : isReached(branch.forkAt + 0.06),
+        content   : (
+          <Box sx={{ position: 'relative' }}>
+            {(showBranchNames) && (
+              <span 
+                style={{ 
+                  position: 'absolute', 
+                  bottom: 'calc(100% + 6px)', 
+                  [(branch.side === 'right') ?('left') :('right')]: 0, 
+                  padding: '2px 8px', 
+                  backgroundColor: 'var(--color-cream)', 
+                  border: `2px solid ${ink}`, 
+                  borderRadius: '6px', 
+                  boxShadow: `3px 3px 0 ${branch.color}`, 
+                  fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', 
+                  fontSize: '13px', 
+                  fontWeight: 700, 
+                  color: branch.color, 
+                  whiteSpace: 'nowrap' 
+                }}
+              >
+                {branch.name}
+              </span>
+            )}
+            <TicketContainer ticketNum={branch.ticket.num} text={branch.ticket.text} status={status} size='sm' accent={branch.color} />
+          </Box>
+        ),
+      };
+    }),
+  ];
+
+  // Measured ticket heights feed the spread so it knows how much room each one takes
+  const [ticketHeights, setTicketHeights] = useState<Record<string, number>>({});
+  const measureTicket = useCallback((key: string, height: number) => {
+    setTicketHeights((prev) => (prev[key] === height ?(prev) :({ ...prev, [key]: height })));
+  }, []);
+  const ticketY = spreadTickets(tickets, ticketHeights, mainEnd);
 
   // Confetti each time the Release card springs in
   const [confettiBurst, setConfettiBurst] = useState(0);
@@ -216,30 +276,12 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
             <motion.circle cx={mainX} cy={headY} r={10.5} stroke='black' strokeWidth={7} fill='#F9F7F4' />
           </svg>
 
-          {/* Branch names (skipped on narrow screens, where they'd run off the edge / into the tickets) */}
-          {(size.width >= 640) && featureBranches.map((branch) => (
-            <Tag stageWidth={size.width} key={`name-${branch.name}`} x={laneX(branch.side)} y={yAt(branch.forkAt) + 46} side={branch.side} shown={isReached(branch.forkAt + 0.03)}>
-              <span style={{ display: 'inline-block', padding: '2px 8px', backgroundColor: 'var(--color-cream)', border: `2px solid ${ink}`, borderRadius: '6px', boxShadow: `3px 3px 0 ${branch.color}`, fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace', fontSize: '13px', fontWeight: 700, color: branch.color, whiteSpace: 'nowrap' }}>
-                {branch.name}
-              </span>
+          {/* Tickets: package tickets beside main, feature tickets beside their branch (spread apart so none overlap) */}
+          {tickets.map((ticket) => (
+            <Tag stageWidth={size.width} key={ticket.key} x={ticket.x} y={ticketY[ticket.key]} side={ticket.side} shown={ticket.shown} onHeight={(height) => measureTicket(ticket.key, height)}>
+              {ticket.content}
             </Tag>
           ))}
-
-          {/* Tickets: package tickets beside main, feature tickets beside their branch */}
-          {mainCommits.map((commit) => (
-            <Tag stageWidth={size.width} key={`ticket-${commit.ticket.num}`} x={mainX} y={yAt(commit.at)} side={commit.side} shown={isReached(commit.at)}>
-              <TicketContainer ticketNum={commit.ticket.num} text={commit.ticket.text} status='completed' size='sm' />
-            </Tag>
-          ))}
-          {featureBranches.map((branch) => {
-            const midY    = yAt(branch.forkAt + (branch.mergeAt - branch.forkAt) * 0.42);
-            const status  : TicketTypes = isReached(branch.mergeAt) ?('completed') :('working on it');
-            return (
-              <Tag stageWidth={size.width} key={`ticket-${branch.ticket.num}`} x={laneX(branch.side)} y={midY} side={branch.side} shown={isReached(branch.forkAt + 0.06)}>
-                <TicketContainer ticketNum={branch.ticket.num} text={branch.ticket.text} status={status} size='sm' accent={branch.color} />
-              </Tag>
-            );
-          })}
 
           {/* Release confetti (bursts from the card's center) */}
           <Confetti burst={confettiBurst} x={mainX} y={mainEnd + 70} />
@@ -290,6 +332,45 @@ const branchPath = (mainX: number, laneX: number, forkY: number, mergeY: number)
   ].join(' ');
 };
 
+interface PlacedTicket {
+  key       : string;
+  side      : 'left' | 'right';
+  x         : number;
+  anchorY   : number;     // Where it would like to sit (its vertical center)
+  topSpace  : number;     // Extra room it needs above itself (the branch name)
+  shown     : boolean;
+  content   : ReactNode;
+}
+
+// Spread each side's tickets apart so none overlap: push down past the one above,
+// then pull back up if the last one would run into the Release card
+const spreadTickets = (tickets: PlacedTicket[], heights: Record<string, number>, maxBottom: number) => {
+  const placed: Record<string, number> = {};
+  const half = (ticket: PlacedTicket) => (heights[ticket.key] ?? 0) / 2;
+
+  (['left', 'right'] as const).forEach((side) => {
+    const column  = tickets.filter((ticket) => ticket.side === side).sort((a, b) => a.anchorY - b.anchorY);
+    const ys      = column.map((ticket) => ticket.anchorY);
+    const last    = column.length - 1;
+    if (last < 0) return;
+
+    for (let i = 1; i <= last; i++) {
+      const lowestFree = ys[i - 1] + half(column[i - 1]) + ticketGap + column[i].topSpace + half(column[i]);
+      ys[i] = Math.max(ys[i], lowestFree);
+    }
+
+    ys[last] = Math.min(ys[last], maxBottom - half(column[last]));
+    for (let i = last - 1; i >= 0; i--) {
+      const highestFree = ys[i + 1] - half(column[i + 1]) - column[i + 1].topSpace - ticketGap - half(column[i]);
+      ys[i] = Math.min(ys[i], highestFree);
+    }
+
+    column.forEach((ticket, i) => { placed[ticket.key] = ys[i]; });
+  });
+
+  return placed;
+};
+
 interface CommitDotProps{
   x       : number;
   y       : number;
@@ -316,26 +397,42 @@ interface TagProps{
   side      : 'left' | 'right';  // Which side of the point it sits on
   shown     : boolean;
   children  : ReactNode;
+  onHeight  ?: (height: number) => void;  // Reports its height whenever it changes
 }
 
 // HTML label pinned beside a point on the graph, sliding in from the graph's side
-const Tag = ({ stageWidth, x, y, side, shown, children }: TagProps) => (
-  <div
-    style={{
-      position: 'absolute', left: x, top: y,
-      maxWidth: Math.max(60, (side === 'right') ?(stageWidth - x - 34) :(x - 34)), // Room on its side (text wraps instead of running off screen)
-      transform: (side === 'right') ?('translate(22px, -50%)') :('translate(calc(-100% - 22px), -50%)')
-    }}
-  >
-    <motion.div
-      initial     = {false}
-      animate     = {shown ?({ opacity: 1, x: 0 }) :({ opacity: 0, x: (side === 'right') ?(-16) :(16) })}
-      transition  = {{ duration: 0.45, ease: 'easeOut' }}
-      style       = {{ pointerEvents: shown ?('auto') :('none') }}
+const Tag = ({ stageWidth, x, y, side, shown, children, onHeight }: TagProps) => {
+  const ref         = useRef<HTMLDivElement>(null);
+  const onHeightRef = useRef(onHeight);   // Latest callback, without re-creating the observer every render
+  onHeightRef.current = onHeight;
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const observer = new ResizeObserver(() => onHeightRef.current?.(element.offsetHeight));
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref   = {ref}
+      style = {{
+        position: 'absolute', left: x, top: y,
+        maxWidth: Math.max(60, (side === 'right') ?(stageWidth - x - 34) :(x - 34)), // Room on its side (text wraps instead of running off screen)
+        transform: (side === 'right') ?('translate(22px, -50%)') :('translate(calc(-100% - 22px), -50%)')
+      }}
     >
-      {children}
-    </motion.div>
-  </div>
-);
+      <motion.div
+        initial     = {false}
+        animate     = {shown ?({ opacity: 1, x: 0 }) :({ opacity: 0, x: (side === 'right') ?(-16) :(16) })}
+        transition  = {{ duration: 0.45, ease: 'easeOut' }}
+        style       = {{ pointerEvents: shown ?('auto') :('none') }}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
 
 export default DevelopmentVersionControl;

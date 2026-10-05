@@ -16,7 +16,7 @@ export const skillCategories: SkillCategory[] = [
     paperColor: 'paper-rust',
     skills: ['Node.js', 'Express', 'PostgreSQL', 'Kysely', 'Zod', 'ASP.NET', 'Websockets', 'MSSQL (T-SQL)', 'NoSQL'],
   },
-  { title: 'Cloud & Infrastructure',
+  { title: 'Cloud & Infra',
     color: 'var(--color-grape)',
     paperColor: 'paper-grape',
     skills: ['AWS Lambda', 'AWS Aurora', 'DynamoDB', 'AWS Cognito', 'AWS S3', 'SST (IaC)', 'Microsoft Azure', 'Azure Functions', 'Azure Logic Apps', 'Google Firebase', 'Docker'],
