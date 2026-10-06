@@ -69,11 +69,11 @@ const QrCodeModal = ({ open, onClose }: Props) => (
               />
             </Box>
 
-            <p id='qr-modal-description' style={{ textAlign: 'center', fontSize: '15px', lineHeight: 1.4 }}>
+            {/* <p id='qr-modal-description' style={{ textAlign: 'center', fontSize: '15px', lineHeight: 1.4 }}>
               <a href={siteUrl} target='_blank' rel='noopener noreferrer' style={{ color: 'var(--color-navy)', fontWeight: 700 }}>
                 {siteUrl.replace('https://', '')}
               </a>
-            </p>
+            </p> */}
           </Box>
         </LegendContainer>
       </motion.div>
