@@ -37,6 +37,9 @@ const startScreenOffset = '40%';
 // Seconds to hold on the first step before auto-play begins, giving the title word cycler time to settle
 const autoPlayStartDelay = 1;
 
+// Shortens every step's duration below while auto-playing (0.9 = 10% faster)
+const stepDurationScale = 0.9;
+
 // Wide cards size to the card stack (a CSS container), not the window, so they lay out correctly when the cube face scales them down
 const wideCardWidth = 'min(815px, 100cqw)';
 
@@ -66,7 +69,7 @@ const processSteps: ProcessStep[] = [
 ];
 
 // Seconds each step stays up while auto-playing (also used by ProcessCube's scroll auto-play)
-export const processStepDurations = processSteps.map((step) => step.duration);
+export const processStepDurations = processSteps.map((step) => step.duration * stepDurationScale);
 
 // Card stack positions: upcoming cards wait below, past cards peek out behind the active one (darkened while hovered)
 const getCardAnim = (index: number, active: number, hovered: boolean) => {
@@ -123,7 +126,7 @@ const IdeasToWebApps = ({
     const controls = animateBar(
       `[data-step-bar="${active}"]`,
       { scaleX: [0, 1] },
-      { duration: processSteps[active].duration, ease: 'linear', delay: (active === 0) ?(autoPlayStartDelay) :(0) }
+      { duration: processStepDurations[active], ease: 'linear', delay: (active === 0) ?(autoPlayStartDelay) :(0) }
     );
     barControls.current = controls;
 

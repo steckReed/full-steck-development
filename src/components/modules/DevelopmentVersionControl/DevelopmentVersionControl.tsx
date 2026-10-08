@@ -79,6 +79,9 @@ const penLine       = 0.45;  // Share of the screen height where the head holds 
 const ticketGap     = 8;     // px: minimum space between stacked tickets on the same side
 const branchNameSpace = 32;  // px: the branch name tag sitting above a feature ticket (tag height + its 6px offset)
 
+// Where the graph finishes drawing in the section's scroll (also used by ProcessCube's auto-play)
+export const versionDrawEnd = drawEnd;
+
 const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
   const containerRef  = useRef<HTMLDivElement>(null);
   const stageRef      = useRef<HTMLDivElement>(null);

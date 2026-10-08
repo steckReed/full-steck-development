@@ -9,6 +9,7 @@ import PixelCurtain from '@/components/elements/PixelCurtain/PixelCurtain';
 import useNavbarTint from '@/hooks/useNavbarTint';
 import IdeasToWebApps, { processStepDurations } from '../IdeasToWebApps/IdeasToWebApps';
 import VersionControlTitle from '../DevelopmentVersionControl/VersionControlTitle/VersionControlTitle';
+import { versionDrawEnd } from '../DevelopmentVersionControl/DevelopmentVersionControl';
 import ScaleToFit from '@/components/elements/ScaleToFit/ScaleToFit';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
@@ -29,20 +30,27 @@ const processStepCount = processStepDurations.length;
 // Seconds a full face-to-face flip takes once triggered
 const flipDuration = 0.9;
 
-// Auto-play on face 2: gently scrolls the page through the steps whenever the visitor stops scrolling
+// Auto-play: scrolls the page whenever the visitor stops scrolling, as one run from face 2 to the Dashboard Playground
+//  - face 2: through the steps, each at its own pace
+//  - then flips to face 3 & carries on through the Version Control graph below, hard stopping at the playground
 const autoPlayIdleMs      = 1200;  // How long after the visitor's last scroll / touch / key before auto-play resumes
-const autoPlayEndGap      = 0.002; // Stops just short of the end of the steps, so the cube never flips on its own
-const upScrollGraceMs     = 1500;  // Scrolling up right after arriving on face 2 (e.g. coming back from face 3) doesn't stop auto-play
+const autoPlayEndGap      = 0.002; // Where the steps end, just short of the turn zone (auto-play jumps the turn zone itself)
+const versionAutoPlayRate = 0.3;   // Face 3 onward: screen heights per second
+const graphAutoPlayRate   = .5;   // Faster while the Version Control graph is pinned & drawing, until the Release shows
+const flipPauseMs         = 1500;   // Brief hold as the cube flips to face 3, before scrolling on
+const navBarHeight        = 48;    // The playground stops just below the NavBar
 
 // Cube size: as wide as the content needs (capped by the screen), leaving room for the NavBar above
 const cubeWidth   = 'min(calc(100vw - 64px), 880px)'; // 32px each side keeps the face dots clear of the cube
-const cubeHeight  = 'calc(100dvh - 124px)'; // NavBar (48px) + control bar & gap (52px) + bottom (24px)
+const cubeHeight  = 'calc(100dvh - 128px)'; // NavBar & gap (60px) + gap & control bar (52px) + bottom (16px)
 const cubeDepth   = 'calc(var(--cube-w) / 2)';
-const stagePaddingBottom = 24;
+const stagePaddingTop     = 60;
+const stagePaddingBottom  = 16;
+const controlBarSpace     = 52; // Control bar (40px) & its gap (12px), below the cube
 
 // Pixel-curtain background behind the cube
-const curtainColor = '#CFCEB7'; // --color-stone (canvas needs a real color value)
-const curtainCoverFrom = 'bottom' as 'top' | 'bottom'; 
+const curtainColor      = '#CFCEB7';
+const curtainCoverFrom  = 'bottom' as 'top' | 'bottom'; 
 
 // Share of the face 1 animation that plays while the cube is still scrolling into view
 const introEntryShare = 0.45;
@@ -76,16 +84,14 @@ const ProcessCube = () => {
   const [processStarted, setProcessStarted]   = useState(false);
   const stepsHovered    = useRef(false);
   const pausedUntil     = useRef(0);
-  const autoPlayStopped = useRef(false); // Set when the visitor picks a step or scrolls back up on face 2, cleared when they come back to face 2
-  const faceEnteredAt   = useRef(0);
-  const [autoPlayOn, setAutoPlayOn] = useState(true); // Mirrors autoPlayStopped for the Auto-play button
-  const [scrollNudge, setScrollNudge] = useState(false); // Bounces "Continue scrolling" once auto-play has finished the steps
+  const autoPlayStopped = useRef(true); // Off on face 1 until the visitor comes down onto face 2 (or presses Auto-play); set again when they pick a step or scroll back up
+  const [autoPlayOn, setAutoPlayOn] = useState(false); // Mirrors autoPlayStopped for the Auto-play button
+  const [controlsShown, setControlsShown] = useState(false); // From the cube pinning to the playground: shows the control bar & the run is live
 
   const setAutoPlay = (on: boolean) => {
     if (autoPlayStopped.current === !on) return;
     autoPlayStopped.current = !on;
     setAutoPlayOn(on);
-    if (on) setScrollNudge(false);
   };
 
   // Cube rotation (right to left): animated to the current face, not scrubbed by scroll
@@ -133,7 +139,7 @@ const ProcessCube = () => {
       const branchRect    = branch.getBoundingClientRect();
       setBranchGeometry({
         offsetX         : (branchRect.left + branchRect.width / 2) - (containerRect.left + containerRect.width / 2),
-        connectorLength : Math.max(0, branchRect.top - containerRect.bottom + stagePaddingBottom),
+        connectorLength : Math.max(0, branchRect.top - containerRect.bottom + stagePaddingBottom + controlBarSpace),
       });
     };
 
@@ -156,26 +162,38 @@ const ProcessCube = () => {
     else if (value < breakpoints.processFaceStart) face = (goingDown) ?(Math.max(face, 1)) :(face);  // First turn zone
     else face = (goingDown) ?(2) :(face);                                                           // Second turn zone
 
+
     // Scrolling up out of a turn zone lands back in the previous hold, handled by the hold checks above
     if (face !== currentFaceRef.current) {
+      if (face === 1 && currentFaceRef.current === 0) setAutoPlay(true); // Coming down onto face 2 starts the auto-play run (scrolling back up into it doesn't)
       currentFaceRef.current = face;
-      setScrollNudge(false);
       setCurrentFace(face);
       if (face >= 1) setProcessStarted(true);
-      if (face === 1) {
-        setAutoPlay(true); // Re-entering face 2 restarts auto-play
-        faceEnteredAt.current   = performance.now();
-      }
-    }
-
-    // Visitor scrolling back up within face 2 turns auto-play off (ignoring the arrival itself & the site's own smooth scrolls)
-    else if (face === 1 && !goingDown) {
-      const now = performance.now();
-      if (now > faceEnteredAt.current + upScrollGraceMs && now > pausedUntil.current) setAutoPlay(false);
     }
   });
 
-  // Auto-play: while face 2 is up & the visitor is idle, scroll through each step at its own pace
+  // Where the auto-play run hard stops: the Dashboard Playground (after the Version Control section) sitting just below the NavBar
+  const getRunEndY = (el: HTMLElement) => {
+    const playground = el.nextElementSibling?.nextElementSibling; // DevelopmentVersionControl, then DashboardPlayground
+    if (!playground) return el.getBoundingClientRect().bottom + window.scrollY - window.innerHeight; // No playground: stop as the cube unpins
+
+    return playground.getBoundingClientRect().top + window.scrollY - navBarHeight;
+  };
+
+  // Where the Version Control graph is pinned & drawing: from its section reaching the top until the Release shows
+  const getGraphRange = (el: HTMLElement) => {
+    const section = el.nextElementSibling as HTMLElement | null; // DevelopmentVersionControl
+    if (!section) return { start: Infinity, end: Infinity };
+
+    const start = section.getBoundingClientRect().top + window.scrollY;
+    return { start, end: start + versionDrawEnd * (section.offsetHeight - window.innerHeight) };
+  };
+
+  // Auto-play: from face 2 to the playground, while the visitor is idle, scroll on through
+  //  - face 2: through each step at its own pace
+  //  - on face 1 (only once the visitor presses Auto-play): skip straight to face 2's first step
+  //  - finished the steps: jump the turn zone & hold briefly as the cube flips to face 3
+  //  - face 3 onward: at a steady pace to the playground, speeding up while the Version Control graph is pinned & drawing
   useEffect(() => {
     if (reduceMotion) return;
 
@@ -184,37 +202,64 @@ const ProcessCube = () => {
     const inputEvents = ['wheel', 'touchstart', 'touchmove', 'keydown'];
     inputEvents.forEach((name) => window.addEventListener(name, markInput, { passive: true }));
 
+    // Visitor scrolling back up anywhere in the run turns auto-play off (ignoring the site's own smooth scrolls)
+    // (watched on the window, since the cube's scroll progress stops changing once it unpins)
+    let lastScrollY = window.scrollY;
+    const onScroll = () => {
+      if (currentFaceRef.current >= 1 && window.scrollY < lastScrollY && performance.now() > pausedUntil.current) setAutoPlay(false);
+      lastScrollY = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+
     let frame: number;
     let prevTime: number | null = null;
     let targetY: number | null = null;   // Kept as a float so slow scrolling doesn't stall on whole-pixel rounding
+    let shownControls = false;
 
     const tick = (time: number) => {
-      const dt          = (prevTime === null) ?(0) :((time - prevTime) / 1000);
-      prevTime          = time;
-      const el          = containerRef.current;
-      const progress    = scrollYProgress.get();
-      const onStepsFace = currentFaceRef.current === 1 && progress < breakpoints.stepsEnd - autoPlayEndGap;
-      const idle        = time - lastInput > autoPlayIdleMs && time > pausedUntil.current && !autoPlayStopped.current && !stepsHovered.current && document.visibilityState === 'visible'
-                          && document.body.style.overflow !== 'hidden'; // A modal (e.g. the NavBar QR code) has locked scrolling
+      const dt        = (prevTime === null) ?(0) :((time - prevTime) / 1000);
+      prevTime        = time;
+      const el        = containerRef.current;
+      const progress  = scrollYProgress.get();
+      const runEndY   = (el) ?(getRunEndY(el)) :(0);
+      const beforeEnd = window.scrollY < runEndY - 1;
+      const pinned    = !!el && el.getBoundingClientRect().top <= 1;   // Stage has reached the top (it stays pinned / scrolled past from here)
+      const inRun     = pinned && beforeEnd;
+      const idle      = time - lastInput > autoPlayIdleMs && time > pausedUntil.current && !autoPlayStopped.current && document.visibilityState === 'visible'
+                        && !(stepsHovered.current && currentFaceRef.current === 1)  // Hovering face 2's steps
+                        && document.body.style.overflow !== 'hidden';               // A modal (e.g. the NavBar QR code) has locked scrolling
 
-      if (el && onStepsFace && idle && dt > 0 && dt < 0.1) {
+      if (inRun !== shownControls) { shownControls = inRun; setControlsShown(inRun); }
+
+      if (el && inRun && idle && dt > 0 && dt < 0.1) {
         const range     = el.offsetHeight - window.innerHeight;
         const top       = el.getBoundingClientRect().top + window.scrollY;
-        const stepLen   = (breakpoints.stepsEnd - breakpoints.stepsStart) / processStepCount;
-        const rate      = stepLen / processStepDurations[Math.min(processStepCount - 1, Math.max(0, Math.floor((progress - breakpoints.stepsStart) / stepLen)))];
+        const stepsEndY = top + (breakpoints.stepsEnd - autoPlayEndGap) * range;
+        const versionY  = top + breakpoints.versionFaceStart * range;
 
         if (targetY === null || Math.abs(targetY - window.scrollY) > 2) targetY = window.scrollY;
-        // Still before step 1 (e.g. idle in the turn zone): skip straight to it, so the slides start without a delay
-        targetY = Math.max(targetY, top + breakpoints.stepsStart * range);
-        const endY = top + (breakpoints.stepsEnd - autoPlayEndGap) * range;
-        targetY = Math.min(endY, targetY + rate * range * dt);
-        window.scrollTo({ top: targetY, behavior: 'instant' });
 
-        // Finished the last step: pause & nudge the visitor to keep scrolling
-        if (targetY >= endY) {
-          setAutoPlay(false);
-          setScrollNudge(true);
+        if (targetY < stepsEndY) {
+          const stepLen = (breakpoints.stepsEnd - breakpoints.stepsStart) / processStepCount;
+          const rate    = stepLen / processStepDurations[Math.min(processStepCount - 1, Math.max(0, Math.floor((progress - breakpoints.stepsStart) / stepLen)))];
+
+          // Still before step 1 (e.g. idle in the turn zone): skip straight to it, so the slides start without a delay
+          targetY = Math.max(targetY, top + breakpoints.stepsStart * range);
+          targetY = Math.min(stepsEndY, targetY + rate * range * dt);
+        } else if (targetY < versionY - 2) {
+          // Finished the last step: jump the turn zone straight on to face 3, holding briefly as the cube flips
+          // (2px slack: the browser rounds the jump down a fraction, which would otherwise read as still short of face 3 & jump / hold again forever)
+          targetY = versionY;
+          pausedUntil.current = time + flipPauseMs;
+        } else {
+          const graph   = getGraphRange(el);
+          const onGraph = targetY >= graph.start && targetY < graph.end;
+          targetY = Math.min(runEndY, targetY + ((onGraph) ?(graphAutoPlayRate) :(versionAutoPlayRate)) * window.innerHeight * dt);
+
+          // Reached the playground: hard stop & hand scrolling back to the visitor
+          if (targetY >= runEndY) setAutoPlay(false);
         }
+        window.scrollTo({ top: targetY, behavior: 'instant' });
       } else {
         targetY = null;
       }
@@ -226,6 +271,7 @@ const ProcessCube = () => {
     return () => {
       cancelAnimationFrame(frame);
       inputEvents.forEach((name) => window.removeEventListener(name, markInput));
+      window.removeEventListener('scroll', onScroll);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reduceMotion]);
@@ -250,14 +296,8 @@ const ProcessCube = () => {
     scrollToProgress(breakpoints.stepsStart + (breakpoints.stepsEnd - breakpoints.stepsStart) * stepEnd);
   };
 
-
-  // Auto-play button: toggles auto-play (if the steps already finished, replays them from the start)
-  const toggleAutoPlay = () => {
-    if (autoPlayOn) { setAutoPlay(false); return; }
-
-    if (stepsProgress.get() >= 0.98) scrollToProgress(breakpoints.processFaceStart);
-    setAutoPlay(true);
-  };
+  // Auto-play button: pauses / resumes the run from wherever the visitor is
+  const toggleAutoPlay = () => setAutoPlay(!autoPlayOn);
 
 
   // Reduced motion: no cube, sections stack normally
@@ -268,46 +308,34 @@ const ProcessCube = () => {
   return(<>
     <Box ref={containerRef} data-analytics-section='process_cube' sx={{ position: 'relative', height: `${(totalScroll + 1) * 100}vh` }}>
 
-      {/* Pinned stage */}
+      {/* Control Bar: fixed to the bottom (lined up under the cube), so it stays reachable through the whole run, */}
+      {/* from the cube pinning down past the Version Control graph to the playground (kept outside the stage, whose perspective would trap it) */}
       <Box
         sx={{
-          position: 'sticky',
-          top: 0,
+          position: 'fixed',
+          zIndex: 2,
+          bottom: `${stagePaddingBottom}px`,
+          left: 0,
+          right: 0,
           display: 'flex',
-          flexDirection: 'column',
           justifyContent: 'center',
-          alignItems: 'center',
-          gap: '12px',
-          height: '100dvh',
-          paddingTop: '48px',
-          paddingBottom: `${stagePaddingBottom}px`,
-          overflow: unpinned ?('visible') :('hidden'), // Let face 3's branch reach past the stage once it scrolls off
-          perspective: '2000px',
-          backgroundColor: 'var(--color-cream)',
-          '--cube-w': cubeWidth,
-          '--cube-h': cubeHeight,
+          pointerEvents: 'none',
+          opacity: (controlsShown) ?(1) :(0),
+          transition: 'opacity 0.3s'
         }}
       >
-        {/* Pixel curtain background (behind everything on the stage) */}
-        <PixelCurtain cover={curtainCover} clear={curtainClear} color={curtainColor} coverFrom={curtainCoverFrom} />
-
-        {/* Control Bar (positioned so it paints above the curtain) */}
-        <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: 'var(--cube-w)', minHeight: '40px' }}>
-          <motion.p
-            animate     = {scrollNudge ?({ y: [0, -7, 0, -3, 0] }) :({ y: 0 })}
-            transition  = {scrollNudge ?({ duration: 0.9, ease: 'easeOut', repeat: 1, repeatDelay: 0.8 }) :({ duration: 0.2 })}
-            style       = {{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: 'clamp(13px, 3.5vw, 16px)', letterSpacing: '2px', color: '#242424', fontWeight: scrollNudge ?(600) :(400) }}
-          >
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', width: cubeWidth, minHeight: `${controlBarSpace - 12}px` }}>
+          <p style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: 'clamp(13px, 3.5vw, 16px)', letterSpacing: '2px', color: '#242424' }}>
             Continue scrolling
             <KeyboardArrowDownIcon fontSize='small' />
-          </motion.p>
+          </p>
 
-          {/* Auto-play (only on the Achievable Web Apps face) */}
+          {/* Auto-play (shown alongside Continue scrolling) */}
           <button
             type          = 'button'
             onClick       = {toggleAutoPlay}
             aria-pressed  = {autoPlayOn}
-            tabIndex      = {(currentFace === 1) ?(0) :(-1)}
+            tabIndex      = {(controlsShown) ?(0) :(-1)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -322,15 +350,38 @@ const ProcessCube = () => {
               fontWeight: 600,
               letterSpacing: '1px',
               cursor: 'pointer',
-              opacity: (currentFace === 1) ?(1) :(0),
-              pointerEvents: (currentFace === 1) ?('auto') :('none'),
-              transition: 'opacity 0.3s, background-color 0.3s, color 0.3s'
+              pointerEvents: (controlsShown) ?('auto') :('none'),
+              transition: 'background-color 0.3s, color 0.3s'
             }}
           >
             {autoPlayOn ?(<PauseRoundedIcon fontSize='small' />) :(<PlayArrowRoundedIcon fontSize='small' />)}
             Auto-play
           </button>
         </Box>
+      </Box>
+
+      {/* Pinned stage */}
+      <Box
+        sx={{
+          position: 'sticky',
+          top: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '12px',
+          height: '100dvh',
+          paddingTop: `${stagePaddingTop}px`,
+          paddingBottom: `${stagePaddingBottom}px`,
+          overflow: unpinned ?('visible') :('hidden'), // Let face 3's branch reach past the stage once it scrolls off
+          perspective: '2000px',
+          backgroundColor: 'var(--color-cream)',
+          '--cube-w': cubeWidth,
+          '--cube-h': cubeHeight,
+        }}
+      >
+        {/* Pixel curtain background (behind everything on the stage) */}
+        <PixelCurtain cover={curtainCover} clear={curtainClear} color={curtainColor} coverFrom={curtainCoverFrom} />
 
         {/* Pushed back half a face so the resting face sits flat at z = 0 */}
         {/* (wrappers ignore the pointer, otherwise they swallow clicks meant for the face in front; the active face re-enables it) */}
@@ -365,6 +416,9 @@ const ProcessCube = () => {
             </CubeFace>
           </motion.div>
         </div>
+
+        {/* Room for the Control Bar (fixed above, it lines up over this spot while the stage is pinned) */}
+        <Box aria-hidden='true' sx={{ flexShrink: 0, height: `${controlBarSpace - 12}px` }} />
 
         {/* Face Indicator */}
         <Box
