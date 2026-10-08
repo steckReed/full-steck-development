@@ -128,18 +128,20 @@ const ProcessCube = () => {
   useMotionValueEvent(exitProgress, 'change', (value) => setUnpinned(value > 0));
 
   // Line face 3's branch up with the Version Control main branch rendered right after the cube
+  // (its main branch runs down the sections center from its top edge; measured off the section itself, not anything on its
+  //  sticky stage, whose rect shifts with scroll & only catches up to a resize after the section re-renders)
   const [branchGeometry, setBranchGeometry] = useState({ offsetX: 0, connectorLength: 0 });
   useEffect(() => {
     const measure = () => {
       const container = containerRef.current;
-      const branch    = container?.nextElementSibling?.querySelector('#center-branch-1'); // DevelopmentVersionControl's main branch
-      if (!container || !branch) return;
+      const section   = container?.nextElementSibling; // DevelopmentVersionControl
+      if (!container || !section) return;
 
       const containerRect = container.getBoundingClientRect();
-      const branchRect    = branch.getBoundingClientRect();
+      const sectionRect   = section.getBoundingClientRect();
       setBranchGeometry({
-        offsetX         : (branchRect.left + branchRect.width / 2) - (containerRect.left + containerRect.width / 2),
-        connectorLength : Math.max(0, branchRect.top - containerRect.bottom + stagePaddingBottom + controlBarSpace),
+        offsetX         : (sectionRect.left + sectionRect.width / 2) - (containerRect.left + containerRect.width / 2),
+        connectorLength : Math.max(0, sectionRect.top - containerRect.bottom + stagePaddingBottom + controlBarSpace),
       });
     };
 

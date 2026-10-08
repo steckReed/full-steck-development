@@ -210,9 +210,6 @@ const DevelopmentVersionControl = ({ showTitle = true }: Props) => {
     <Box ref={containerRef} data-analytics-section='version_control' sx={{ position: 'relative', height: `${scrollLength * 100}vh` }}>
       <Box ref={stageRef} sx={{ position: 'sticky', top: 0, height: '100dvh', overflowX: 'clip', overflowY: 'visible' }}>{/* Clip sideways only, so the head isn't cut off at the top edge */}
 
-        {/* Where the cube's branch connector lands (ProcessCube measures this element) */}
-        <div id='center-branch-1' style={{ position: 'absolute', left: mainX - 3, top: 0, width: 6, height: 1 }} />
-
         {(size.width > 0) && (<>
           {/* Supergraphic backdrop: oversized type bleeding off the left edge (wide screens only) */}
           {(size.width >= 640) && (
