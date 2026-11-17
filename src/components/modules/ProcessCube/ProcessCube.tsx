@@ -489,9 +489,7 @@ const ReducedMotionStack = () => {
 
   return(<>
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: '5.5vh' }}>
-      <Box sx={{ position: 'relative', height: '100vh', containerType: 'size' }}>
-        <AboutMeFace progress={fullProgress} />
-      </Box>
+      <AboutMeFace progress={fullProgress} inline />
 
       <IdeasToWebApps />
 

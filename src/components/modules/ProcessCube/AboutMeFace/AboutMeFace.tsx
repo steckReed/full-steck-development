@@ -8,8 +8,12 @@ import useIsMobile from '@/functions/useIsMobile';
 import { aboutMe } from '@/data/aboutMe';
 
 interface Props{
-  progress: MotionValue<number>; // 0 to 1 while this face scrolls in & is held on screen
+  progress  : MotionValue<number>; // 0 to 1 while this face scrolls in & is held on screen
+  inline    ?: boolean;            // Reduced motion: lay out in normal page flow (no cube face to scale into), capped to the cube's width
 }
+
+// Inline (reduced motion) width: matches the cube so the section lines up with the rest of the page
+const inlineMaxWidth = '880px';
 
 const ink = '#242424';
 const mobile = '@media (max-width: 768px)';
@@ -20,7 +24,7 @@ const hobbyColors = ['var(--color-plum)', 'var(--color-navy)', 'var(--color-rust
 const playAt  = 0.2; // ~45% of the cube on screen
 const resetAt = 0.02;
 
-const AboutMeFace = ({ progress }: Props) => {
+const AboutMeFace = ({ progress, inline = false }: Props) => {
   const isMobile          = useIsMobile();
   const [shown, setShown] = useState(() => progress.get() >= playAt);
 
@@ -29,12 +33,7 @@ const AboutMeFace = ({ progress }: Props) => {
     else if (value <= resetAt) setShown(false);
   });
 
-  return(<>
-    <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: '12px' }}>
-
-      {/* Content */}
-      {/* Mobile lays out narrower (single column), so it scales up larger on the card */}
-      <ScaleToFit minLayoutWidth={isMobile ?(420) :(560)} padTop={24} padBottom={24} fillWidth>
+  const content = (
         <Box sx={{ display: 'grid', gap: '28px', padding: '0 clamp(16px, 4%, 48px)' }}>
 
           {/* Title */}
@@ -89,6 +88,24 @@ const AboutMeFace = ({ progress }: Props) => {
             </Box>
           </Box>
         </Box>
+  );
+
+  // Reduced motion: plain section in the page flow, same width as the cube
+  if (inline) {
+    return(
+      <Box sx={{ width: '100%', maxWidth: inlineMaxWidth, margin: '0 auto' }}>
+        {content}
+      </Box>
+    );
+  }
+
+  return(<>
+    <Box sx={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: '12px' }}>
+
+      {/* Content */}
+      {/* Mobile lays out narrower (single column), so it scales up larger on the card */}
+      <ScaleToFit minLayoutWidth={isMobile ?(420) :(560)} padTop={24} padBottom={24} fillWidth>
+        {content}
       </ScaleToFit>
     </Box>
   </>)
